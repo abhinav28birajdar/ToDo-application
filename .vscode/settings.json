@@ -1,0 +1,17 @@
+{
+    "dart.debugExtensionBackendProtocol": "ws",
+    "dart.flutterGenerateLocalizationsOnSave": "never",
+    "dart.openDevTools": "flutter",
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true,
+        "**/build": true,
+        "**/*.g.dart": false
+    },
+    "flutter.experiments": {
+        "web": true
+    }
+}
