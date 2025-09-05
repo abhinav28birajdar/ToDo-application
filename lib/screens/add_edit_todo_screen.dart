@@ -673,9 +673,12 @@ class _AddEditTodoScreenState extends State<AddEditTodoScreen> {
         );
       } else {
         // Add new todo
-        todoProvider.addTodo(
-          _titleController.text.trim(),
+        final newTodo = Todo(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          title: _titleController.text.trim(),
           description: _descriptionController.text.trim(),
+          isCompleted: false,
+          creationDate: DateTime.now(),
           dueDate: _selectedDueDate,
           categoryId: _selectedCategoryId,
           priority: _selectedPriority,
@@ -684,6 +687,7 @@ class _AddEditTodoScreenState extends State<AddEditTodoScreen> {
           notificationTime: _notificationTime,
           notes: _notesController.text.trim(),
         );
+        todoProvider.addTodo(newTodo);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Todo added successfully!')),
         );

@@ -554,14 +554,15 @@ class SettingsScreen extends StatelessWidget {
       final categoryProvider = context.read<CategoryProvider>();
       final settingsProvider = context.read<SettingsProvider>();
 
-      final todos = await todoProvider.exportTodos();
-      final categories = await categoryProvider.exportCategories();
-      final settings = settingsProvider.exportSettings();
+      // Export functionality is handled by BackupService
 
-      final backupPath = await BackupService.createBackup(
-        todos: todos,
-        categories: categories,
-        settings: settings,
+      // Create an instance of BackupService
+      final backupService = BackupService();
+      final backupPath = await backupService.createBackup(
+        tasks: todoProvider.allTodos,
+        notes: [], // Assuming we don't have notes yet
+        categories: categoryProvider.categories,
+        settings: settingsProvider.settings,
       );
 
       if (context.mounted) {

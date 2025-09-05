@@ -1,35 +1,52 @@
-# Flutter Todo App - Complete Full Stack Application
+# Pro-Organizer
 
-A comprehensive Flutter Todo application with local persistence, state management, and a complete feature set.
+A secure, personalized to-do and notes Flutter application with Supabase authentication and backend.
 
 ## 🚀 Features
 
-### Core Features
-- ✅ Add, edit, and delete todos
-- ✅ Mark todos as complete/incomplete
-- ✅ Priority levels (High, Medium, Low)
-- ✅ Due dates and times
-- ✅ Categories with custom icons and colors
-- ✅ Tags for better organization
-- ✅ Additional notes for each todo
+### Authentication
+- 🔐 Secure user authentication with Supabase
+- 📝 Account creation and management
+- 🔑 Password reset functionality
 
-### Advanced Features
-- 🔍 Search and filter todos
-- 📱 Local notifications for due dates
-- 🎨 Dark/Light theme support
-- 📊 Statistics and analytics
-- 💾 Local data persistence with Hive
-- 📦 Backup and restore functionality
-- ⚙️ Comprehensive settings
-- 🏷️ Category management
+### Task Management
+- ✅ Create, edit, and delete tasks
+- 📅 Set due dates and priorities
+- 🏷️ Organize tasks with categories
+- ✓ Track task completion
+- 🔍 Filter and sort tasks by various criteria
+- 🔄 Recurring task support (daily, weekly, monthly, yearly)
+
+### Notes
+- 📝 Create, edit, and delete notes
+- 📄 Rich text formatting
+- ⭐ Favorite important notes
+- 🏷️ Organize with tags
+- 📲 Share notes with other users
+
+### Notifications & Reminders
+- ⏰ Due date reminders
+- � Recurring notifications
+- � Custom alarms
+- 📲 Notification management
+
+### Customization & Settings
+- 🎨 Custom color theme (Dark Olive, Sage Green, Beige/Sand, Off-White)
+- � Dark and light mode support
+- �️ Personalized view options
+- 🌍 Language settings
+- � Data synchronization controls
+- � Backup and restore functionality
 
 ### Technical Features
+- 📱 Flutter UI framework
 - 🏗️ Provider for state management
-- 🗄️ Hive for local NoSQL database
-- 🔔 Local notifications
+- ☁️ Supabase for authentication and cloud storage
+- 🗄️ Hive for local offline database
+- 🔔 Local notifications with timezone support
+- 💉 get_it for dependency injection
 - 🌍 Environment variables with .env
-- 🛡️ Error handling and debugging
-- 📱 Responsive Material Design 3 UI
+- 🛡️ Error handling and validation
 
 ## 📋 Prerequisites
 

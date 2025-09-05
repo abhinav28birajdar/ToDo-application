@@ -54,7 +54,7 @@ class CategoryProvider extends ChangeNotifier {
         description: 'Personal tasks and activities',
         colorValue: Colors.blue.value,
         iconData: Icons.person,
-        creationDate: DateTime.now(),
+        createdAt: DateTime.now(),
         isDefault: true,
       ),
       Category(
@@ -63,7 +63,7 @@ class CategoryProvider extends ChangeNotifier {
         description: 'Work-related tasks',
         colorValue: Colors.orange.value,
         iconData: Icons.work,
-        creationDate: DateTime.now(),
+        createdAt: DateTime.now(),
         isDefault: true,
       ),
       Category(
@@ -72,7 +72,7 @@ class CategoryProvider extends ChangeNotifier {
         description: 'Shopping lists and purchases',
         colorValue: Colors.green.value,
         iconData: Icons.shopping_cart,
-        creationDate: DateTime.now(),
+        createdAt: DateTime.now(),
         isDefault: true,
       ),
       Category(
@@ -81,7 +81,7 @@ class CategoryProvider extends ChangeNotifier {
         description: 'Health and fitness related tasks',
         colorValue: Colors.red.value,
         iconData: Icons.favorite,
-        creationDate: DateTime.now(),
+        createdAt: DateTime.now(),
         isDefault: true,
       ),
       Category(
@@ -90,7 +90,7 @@ class CategoryProvider extends ChangeNotifier {
         description: 'Learning and educational tasks',
         colorValue: Colors.purple.value,
         iconData: Icons.school,
-        creationDate: DateTime.now(),
+        createdAt: DateTime.now(),
         isDefault: true,
       ),
     ];
@@ -118,7 +118,7 @@ class CategoryProvider extends ChangeNotifier {
         description: description,
         colorValue: color.value,
         iconData: iconData,
-        creationDate: DateTime.now(),
+        createdAt: DateTime.now(),
         isDefault: false,
       );
 
@@ -191,7 +191,7 @@ class CategoryProvider extends ChangeNotifier {
                 'description': category.description,
                 'colorValue': category.colorValue,
                 'iconData': category.iconData.codePoint,
-                'creationDate': category.creationDate.toIso8601String(),
+                'created_at': category.createdAt.toIso8601String(),
                 'isDefault': category.isDefault,
               })
           .toList();

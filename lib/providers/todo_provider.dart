@@ -1,90 +1,133 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+import '../models/task.dart';
 import '../models/todo.dart';
 import '../services/notification_service.dart';
+import '../services/supabase/supabase_service.dart';
 
 class TodoProvider extends ChangeNotifier {
-  // Define constants for Hive box names from environment
-  static String get _todoBoxName => dotenv.env['HIVE_BOX_NAME'] ?? 'todos';
+  final SupabaseService _supabaseService;
+  final NotificationService _notificationService;
 
-  late Box<Todo> _todoBox;
-  List<Todo> _todos = [];
-  List<Todo> _filteredTodos = [];
+  List<Task> _allTasks = [];
+  List<Task> _filteredTasks = [];
   String _searchQuery = '';
-  String _filterOption = 'all'; // 'all', 'active', 'completed'
-  String _sortOrder = 'creation_date_desc';
+  String _filterOption =
+      'all'; // 'all', 'active', 'completed', 'overdue', 'today'
+  String _sortOrder = 'due_date_asc';
   String? _selectedCategoryId;
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  TodoProvider({
+    required SupabaseService supabaseService,
+    required NotificationService notificationService,
+  })  : _supabaseService = supabaseService,
+        _notificationService = notificationService {
+    _initialize();
+  }
 
   // Getters
-  List<Todo> get todos => _filteredTodos;
-  List<Todo> get allTodos => _todos;
+  List<Task> get todos => _filteredTasks;
+  List<Task> get allTodos => _allTasks;
   String get searchQuery => _searchQuery;
   String get filterOption => _filterOption;
   String get sortOrder => _sortOrder;
   String? get selectedCategoryId => _selectedCategoryId;
+  bool get isLoading => _isLoading;
+  String? get errorMessage => _errorMessage;
 
-  // Statistics
-  int get totalTodos => _todos.length;
-  int get completedTodos => _todos.where((todo) => todo.isCompleted).length;
-  int get activeTodos => _todos.where((todo) => !todo.isCompleted).length;
-  int get overdueTodos => _todos.where((todo) => todo.isOverdue).length;
-  int get dueTodayTodos => _todos.where((todo) => todo.isDueToday).length;
-
-  TodoProvider() {
-    _initHive();
+  // Convert Task to Todo for compatibility
+  Todo taskToTodo(Task task) {
+    return Todo(
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      isCompleted: task.isCompleted,
+      creationDate: task.createdAt,
+      dueDate: task.dueDate,
+      categoryId: task.categoryId,
+      priority: task.priority,
+      tags: [], // Task doesn't have tags
+      hasNotification: task.notificationTime != null,
+      notificationTime: task.notificationTime,
+      completionDate: task.completedDate,
+      notes: '', // Task doesn't have notes field
+    );
   }
 
-  // Initialize Hive box and load existing todos
-  Future<void> _initHive() async {
+  // Statistics
+  int get totalTodos => _allTasks.length;
+  int get completedTodos => _allTasks.where((task) => task.isCompleted).length;
+  int get activeTodos => _allTasks.where((task) => !task.isCompleted).length;
+  int get overdueTodos => _allTasks.where((task) => task.isOverdue).length;
+  int get dueTodayTodos => _allTasks.where((task) => task.isDueToday).length;
+
+  // Initialize data
+  Future<void> _initialize() async {
+    await loadTasks();
+  }
+
+  // Load tasks from Supabase
+  // Alias for loadTasks to make it more consistent with naming conventions
+  Future<void> fetchTasks() async {
+    return loadTasks();
+  }
+
+  Future<void> loadTasks() async {
+    _setLoading(true);
+
     try {
-      // Open the box, making sure it's not already open
-      if (!Hive.isBoxOpen(_todoBoxName)) {
-        _todoBox = await Hive.openBox<Todo>(_todoBoxName);
-      } else {
-        _todoBox = Hive.box<Todo>(_todoBoxName);
+      if (_supabaseService.currentUser == null) {
+        _allTasks = [];
+        _applyFiltersAndSort();
+        _setLoading(false);
+        return;
       }
 
-      // Load todos from the box into our private list
-      _todos = _todoBox.values.toList();
+      final tasksData = await _supabaseService.getTasks();
+      _allTasks = tasksData.map((data) => Task.fromSupabase(data)).toList();
+
+      // Schedule notifications for all active tasks
+      for (var task in _allTasks
+          .where((t) => !t.isCompleted && t.notificationTime != null)) {
+        await _notificationService.scheduleTaskNotification(task);
+      }
+
       _applyFiltersAndSort();
-      notifyListeners();
+      _setLoading(false);
     } catch (e) {
-      debugPrint('Error initializing Todo Hive box: $e');
+      _setError('Error loading tasks: $e');
     }
   }
 
   // Apply current filters and sorting
   void _applyFiltersAndSort() {
-    List<Todo> filtered = List.from(_todos);
+    List<Task> filtered = List.from(_allTasks);
 
     // Apply search filter
     if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((todo) {
-        return todo.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-            todo.description
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase()) ||
-            todo.tags.any((tag) =>
-                tag.toLowerCase().contains(_searchQuery.toLowerCase()));
+      filtered = filtered.where((task) {
+        return task.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+            task.description.toLowerCase().contains(_searchQuery.toLowerCase());
       }).toList();
     }
 
     // Apply completion filter
     switch (_filterOption) {
       case 'active':
-        filtered = filtered.where((todo) => !todo.isCompleted).toList();
+        filtered = filtered.where((task) => !task.isCompleted).toList();
         break;
       case 'completed':
-        filtered = filtered.where((todo) => todo.isCompleted).toList();
+        filtered = filtered.where((task) => task.isCompleted).toList();
         break;
       case 'overdue':
-        filtered = filtered.where((todo) => todo.isOverdue).toList();
+        filtered = filtered.where((task) => task.isOverdue).toList();
         break;
-      case 'due_today':
-        filtered = filtered.where((todo) => todo.isDueToday).toList();
+      case 'today':
+        filtered = filtered.where((task) => task.isDueToday).toList();
         break;
       case 'all':
       default:
@@ -95,204 +138,217 @@ class TodoProvider extends ChangeNotifier {
     // Apply category filter
     if (_selectedCategoryId != null) {
       filtered = filtered
-          .where((todo) => todo.categoryId == _selectedCategoryId)
+          .where((task) => task.categoryId == _selectedCategoryId)
           .toList();
     }
 
     // Apply sorting
-    switch (_sortOrder) {
-      case 'creation_date_asc':
-        filtered.sort((a, b) => a.creationDate.compareTo(b.creationDate));
-        break;
-      case 'creation_date_desc':
-        filtered.sort((a, b) => b.creationDate.compareTo(a.creationDate));
-        break;
-      case 'due_date_asc':
-        filtered.sort((a, b) {
-          if (a.dueDate == null && b.dueDate == null) return 0;
-          if (a.dueDate == null) return 1;
-          if (b.dueDate == null) return -1;
-          return a.dueDate!.compareTo(b.dueDate!);
-        });
-        break;
-      case 'due_date_desc':
-        filtered.sort((a, b) {
-          if (a.dueDate == null && b.dueDate == null) return 0;
-          if (a.dueDate == null) return 1;
-          if (b.dueDate == null) return -1;
-          return b.dueDate!.compareTo(a.dueDate!);
-        });
-        break;
-      case 'priority':
-        filtered.sort((a, b) => a.priority.compareTo(b.priority));
-        break;
-      case 'title':
-        filtered.sort(
-            (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
-        break;
-      default:
-        filtered.sort((a, b) => b.creationDate.compareTo(a.creationDate));
-        break;
-    }
+    _sortTasks(filtered);
 
-    _filteredTodos = filtered;
+    _filteredTasks = filtered;
+    notifyListeners();
   }
 
-  // Add a new todo item
-  Future<void> addTodo(
-    String title, {
-    String description = '',
-    DateTime? dueDate,
-    String? categoryId,
-    int priority = 2,
-    List<String> tags = const [],
-    bool hasNotification = false,
-    DateTime? notificationTime,
-    String? notes,
-  }) async {
+  // Create a new task
+  Future<void> createTask(Task task) async {
+    _setLoading(true);
+
     try {
-      const uuid = Uuid();
-      final newTodo = Todo(
-        id: uuid.v4(),
-        title: title,
-        description: description,
-        creationDate: DateTime.now(),
-        dueDate: dueDate,
-        categoryId: categoryId,
-        priority: priority,
-        tags: tags,
-        hasNotification: hasNotification,
-        notificationTime: notificationTime,
-        notes: notes,
+      final newTask = task.copyWith(
+        userId: _supabaseService.currentUser?.id,
       );
 
-      // Add to Hive box
-      await _todoBox.put(newTodo.id, newTodo);
-      _todos.add(newTodo);
+      final responseData =
+          await _supabaseService.createTask(newTask.toSupabase());
+      final createdTask = Task.fromSupabase(responseData);
 
-      // Schedule notification if requested
-      if (hasNotification && notificationTime != null) {
-        await NotificationService.scheduleNotification(newTodo);
+      _allTasks.add(createdTask);
+
+      // Schedule notification if needed
+      if (createdTask.notificationTime != null) {
+        await _notificationService.scheduleTaskNotification(createdTask);
       }
 
       _applyFiltersAndSort();
-      notifyListeners();
+      _setLoading(false);
     } catch (e) {
-      debugPrint('Error adding todo: $e');
-      rethrow;
+      _setError('Error creating task: $e');
     }
   }
 
-  // Update an existing todo item
-  Future<void> updateTodo(Todo updatedTodo) async {
+  // Add Todo method for compatibility with add_edit_todo_screen
+  Future<void> addTodo(Todo todo) async {
+    final task = Task(
+      id: todo.id,
+      title: todo.title,
+      description: todo.description,
+      isCompleted: todo.isCompleted,
+      dueDate: todo.dueDate,
+      completedDate: todo.completionDate,
+      notificationTime: todo.hasNotification ? todo.notificationTime : null,
+      priority: todo.priority,
+      categoryId: todo.categoryId,
+      userId: _supabaseService.currentUser?.id,
+      recurrence: null, // Todo doesn't have recurrence
+      createdAt: todo.creationDate,
+      updatedAt: DateTime.now(),
+    );
+
+    await createTask(task);
+  }
+
+  // Update Todo method for compatibility with add_edit_todo_screen
+  Future<void> updateTodo(Todo todo) async {
+    final existingTaskIndex =
+        _allTasks.indexWhere((task) => task.id == todo.id);
+    if (existingTaskIndex >= 0) {
+      final existingTask = _allTasks[existingTaskIndex];
+      final updatedTask = existingTask.copyWith(
+        title: todo.title,
+        description: todo.description,
+        isCompleted: todo.isCompleted,
+        dueDate: todo.dueDate,
+        completedDate: todo.completionDate,
+        notificationTime: todo.hasNotification ? todo.notificationTime : null,
+        priority: todo.priority,
+        categoryId: todo.categoryId,
+        updatedAt: DateTime.now(),
+      );
+
+      await updateTask(updatedTask);
+    }
+  }
+
+  // Delete Todo method for compatibility
+  Future<void> deleteTodo(String id) async {
+    await deleteTask(id);
+  }
+
+  // Update an existing task
+  Future<void> updateTask(Task task) async {
+    _setLoading(true);
+
     try {
-      final index = _todos.indexWhere((todo) => todo.id == updatedTodo.id);
+      final updatedTask = task.copyWith(
+        updatedAt: DateTime.now(),
+      );
+
+      await _supabaseService.updateTask(task.id, updatedTask.toSupabase());
+
+      final index = _allTasks.indexWhere((t) => t.id == task.id);
       if (index != -1) {
-        final oldTodo = _todos[index];
-        _todos[index] = updatedTodo;
-        await _todoBox.put(updatedTodo.id, updatedTodo);
+        _allTasks[index] = updatedTask;
 
-        // Handle notification updates
-        if (oldTodo.hasNotification && !updatedTodo.hasNotification) {
-          await NotificationService.cancelNotification(updatedTodo.id);
-        } else if (updatedTodo.hasNotification &&
-            updatedTodo.notificationTime != null) {
-          await NotificationService.scheduleNotification(updatedTodo);
+        // Cancel old notification and schedule new one if needed
+        await _notificationService.cancelNotification(task.id);
+        if (!updatedTask.isCompleted && updatedTask.notificationTime != null) {
+          await _notificationService.scheduleTaskNotification(updatedTask);
         }
-
-        _applyFiltersAndSort();
-        notifyListeners();
       }
+
+      _applyFiltersAndSort();
+      _setLoading(false);
     } catch (e) {
-      debugPrint('Error updating todo: $e');
-      rethrow;
+      _setError('Error updating task: $e');
     }
   }
 
-  // Toggle the completion status of a todo item
-  Future<void> toggleTodoStatus(Todo todo) async {
+  // Toggle task completion status
+  Future<void> toggleTodoStatus(dynamic taskOrTodo) async {
+    Task task;
+    if (taskOrTodo is Todo) {
+      // Find the equivalent Task from Todo
+      task = _allTasks.firstWhere((t) => t.id == taskOrTodo.id);
+    } else if (taskOrTodo is Task) {
+      task = taskOrTodo;
+    } else {
+      throw ArgumentError('Expected Task or Todo type');
+    }
     try {
       final now = DateTime.now();
-      final updatedTodo = todo.copyWith(
-        isCompleted: !todo.isCompleted,
-        completionDate: !todo.isCompleted ? now : null,
+      final updatedTask = task.copyWith(
+        isCompleted: !task.isCompleted,
+        completedDate: !task.isCompleted ? now : null,
       );
 
-      // Cancel notification if todo is completed
-      if (updatedTodo.isCompleted && todo.hasNotification) {
-        await NotificationService.cancelNotification(todo.id);
+      // Cancel notification if task is completed
+      if (updatedTask.isCompleted && updatedTask.notificationTime != null) {
+        await _notificationService.cancelNotification(task.id);
       }
 
-      await updateTodo(updatedTodo);
+      await updateTask(updatedTask);
     } catch (e) {
-      debugPrint('Error toggling todo status: $e');
-      rethrow;
+      _setError('Error toggling task status: $e');
     }
   }
 
-  // Delete a todo item
-  Future<void> deleteTodo(String id) async {
-    try {
-      // Cancel any scheduled notification
-      await NotificationService.cancelNotification(id);
+  // Delete a task
+  Future<void> deleteTask(String id) async {
+    _setLoading(true);
 
-      // Remove from Hive box
-      await _todoBox.delete(id);
+    try {
+      await _supabaseService.deleteTask(id);
+
+      // Cancel notification
+      await _notificationService.cancelNotification(id);
 
       // Remove from in-memory list
-      _todos.removeWhere((todo) => todo.id == id);
-
+      _allTasks.removeWhere((task) => task.id == id);
       _applyFiltersAndSort();
-      notifyListeners();
+      _setLoading(false);
     } catch (e) {
-      debugPrint('Error deleting todo: $e');
-      rethrow;
+      _setError('Error deleting task: $e');
     }
   }
 
   // Batch operations
-  Future<void> deleteCompletedTodos() async {
-    try {
-      final completedTodos = _todos.where((todo) => todo.isCompleted).toList();
+  Future<void> deleteCompletedTasks() async {
+    _setLoading(true);
 
-      for (final todo in completedTodos) {
-        await NotificationService.cancelNotification(todo.id);
-        await _todoBox.delete(todo.id);
+    try {
+      final completedTasks =
+          _allTasks.where((task) => task.isCompleted).toList();
+
+      for (final task in completedTasks) {
+        await _supabaseService.deleteTask(task.id);
+        await _notificationService.cancelNotification(task.id);
       }
 
-      _todos.removeWhere((todo) => todo.isCompleted);
+      _allTasks.removeWhere((task) => task.isCompleted);
       _applyFiltersAndSort();
-      notifyListeners();
+      _setLoading(false);
     } catch (e) {
-      debugPrint('Error deleting completed todos: $e');
-      rethrow;
+      _setError('Error deleting completed tasks: $e');
     }
   }
 
   Future<void> markAllAsCompleted() async {
+    _setLoading(true);
+
     try {
-      final activeTodos = _todos.where((todo) => !todo.isCompleted).toList();
+      final activeTasks = _allTasks.where((task) => !task.isCompleted).toList();
       final now = DateTime.now();
 
-      for (final todo in activeTodos) {
-        final updatedTodo = todo.copyWith(
+      for (final task in activeTasks) {
+        final updatedTask = task.copyWith(
           isCompleted: true,
-          completionDate: now,
+          completedDate: now,
         );
-        await _todoBox.put(updatedTodo.id, updatedTodo);
-        await NotificationService.cancelNotification(todo.id);
 
-        final index = _todos.indexWhere((t) => t.id == todo.id);
+        await _supabaseService.updateTask(
+            updatedTask.id, updatedTask.toSupabase());
+        await _notificationService.cancelNotification(task.id);
+
+        final index = _allTasks.indexWhere((t) => t.id == task.id);
         if (index != -1) {
-          _todos[index] = updatedTodo;
+          _allTasks[index] = updatedTask;
         }
       }
 
       _applyFiltersAndSort();
-      notifyListeners();
+      _setLoading(false);
     } catch (e) {
-      debugPrint('Error marking all todos as completed: $e');
-      rethrow;
+      _setError('Error marking all tasks as completed: $e');
     }
   }
 
@@ -300,25 +356,21 @@ class TodoProvider extends ChangeNotifier {
   void setSearchQuery(String query) {
     _searchQuery = query;
     _applyFiltersAndSort();
-    notifyListeners();
   }
 
   void setFilterOption(String filter) {
     _filterOption = filter;
     _applyFiltersAndSort();
-    notifyListeners();
   }
 
   void setSortOrder(String order) {
     _sortOrder = order;
     _applyFiltersAndSort();
-    notifyListeners();
   }
 
   void setCategoryFilter(String? categoryId) {
     _selectedCategoryId = categoryId;
     _applyFiltersAndSort();
-    notifyListeners();
   }
 
   void clearFilters() {
@@ -326,64 +378,117 @@ class TodoProvider extends ChangeNotifier {
     _filterOption = 'all';
     _selectedCategoryId = null;
     _applyFiltersAndSort();
-    notifyListeners();
   }
 
-  // Get todos by category
+  // Helper methods
+  void _sortTasks(List<Task> tasks) {
+    switch (_sortOrder) {
+      case 'creation_date_asc':
+        tasks.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        break;
+      case 'creation_date_desc':
+        tasks.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        break;
+      case 'due_date_asc':
+        tasks.sort((a, b) {
+          if (a.dueDate == null && b.dueDate == null) return 0;
+          if (a.dueDate == null) return 1;
+          if (b.dueDate == null) return -1;
+          return a.dueDate!.compareTo(b.dueDate!);
+        });
+        break;
+      case 'due_date_desc':
+        tasks.sort((a, b) {
+          if (a.dueDate == null && b.dueDate == null) return 0;
+          if (a.dueDate == null) return 1;
+          if (b.dueDate == null) return -1;
+          return b.dueDate!.compareTo(a.dueDate!);
+        });
+        break;
+      case 'priority':
+        tasks.sort((a, b) => a.priority.compareTo(b.priority));
+        break;
+      case 'title':
+        tasks.sort(
+            (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        break;
+      default:
+        tasks.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        break;
+    }
+  }
+
+  // Get tasks by category
+  List<Task> getTasksByCategory(String categoryId) {
+    return _allTasks.where((task) => task.categoryId == categoryId).toList();
+  }
+
+  // Get todos by category (for compatibility)
   List<Todo> getTodosByCategory(String categoryId) {
-    return _todos.where((todo) => todo.categoryId == categoryId).toList();
+    return _allTasks
+        .where((task) => task.categoryId == categoryId)
+        .map((task) => taskToTodo(task))
+        .toList();
   }
 
-  // Get todos by priority
-  List<Todo> getTodosByPriority(int priority) {
-    return _todos.where((todo) => todo.priority == priority).toList();
+  // Get tasks by priority
+  List<Task> getTasksByPriority(int priority) {
+    return _allTasks.where((task) => task.priority == priority).toList();
   }
 
-  // Get todo by ID
-  Todo? getTodoById(String id) {
+  // Get task by ID
+  Task? getTaskById(String id) {
     try {
-      return _todos.firstWhere((todo) => todo.id == id);
+      return _allTasks.firstWhere((task) => task.id == id);
     } catch (e) {
       return null;
     }
   }
 
-  // Backup and restore
+  void _setLoading(bool loading) {
+    _isLoading = loading;
+    if (loading) {
+      _errorMessage = null;
+    }
+    notifyListeners();
+  }
+
+  void _setError(String error) {
+    _errorMessage = error;
+    _isLoading = false;
+    debugPrint(error);
+    notifyListeners();
+  }
+
+  // Export todos for backup
   Future<Map<String, dynamic>> exportTodos() async {
     try {
-      final todosJson = _todos
-          .map((todo) => {
-                'id': todo.id,
-                'title': todo.title,
-                'description': todo.description,
-                'isCompleted': todo.isCompleted,
-                'creationDate': todo.creationDate.toIso8601String(),
-                'dueDate': todo.dueDate?.toIso8601String(),
-                'categoryId': todo.categoryId,
-                'priority': todo.priority,
-                'tags': todo.tags,
-                'hasNotification': todo.hasNotification,
-                'notificationTime': todo.notificationTime?.toIso8601String(),
-                'completionDate': todo.completionDate?.toIso8601String(),
-                'notes': todo.notes,
+      final todosJson = _allTasks
+          .map((task) => {
+                'id': task.id,
+                'title': task.title,
+                'description': task.description,
+                'isCompleted': task.isCompleted,
+                'createdAt': task.createdAt.toIso8601String(),
+                'dueDate': task.dueDate?.toIso8601String(),
+                'categoryId': task.categoryId,
+                'priority': task.priority,
+                'notificationTime': task.notificationTime?.toIso8601String(),
+                'completedDate': task.completedDate?.toIso8601String(),
+                'userId': task.userId,
+                'updatedAt': task.updatedAt.toIso8601String(),
               })
           .toList();
 
       return {
         'version': '1.0.0',
         'exportDate': DateTime.now().toIso8601String(),
-        'todosCount': _todos.length,
-        'todos': todosJson,
+        'tasksCount': _allTasks.length,
+        'tasks': todosJson,
       };
     } catch (e) {
-      debugPrint('Error exporting todos: $e');
+      debugPrint('Error exporting tasks: $e');
       rethrow;
     }
-  }
-
-  @override
-  void dispose() {
-    _todoBox.close();
-    super.dispose();
   }
 }

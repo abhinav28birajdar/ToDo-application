@@ -1,19 +1,26 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import '../models/todo.dart';
+import 'package:timezone/data/latest.dart' as tz_data;
+import 'package:timezone/timezone.dart' as tz;
+import '../models/task.dart';
 
 class NotificationService {
-  static final FlutterLocalNotificationsPlugin _notifications =
-      FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _notifications;
+  bool _initialized = false;
 
-  static bool _initialized = false;
+  NotificationService({FlutterLocalNotificationsPlugin? notificationsPlugin})
+      : _notifications =
+            notificationsPlugin ?? FlutterLocalNotificationsPlugin();
 
   // Initialize the notification service
-  static Future<void> initialize() async {
+  Future<void> initializeNotifications() async {
     if (_initialized) return;
 
     try {
+      // Initialize timezone
+      tz_data.initializeTimeZones();
+
       // Android initialization settings
       const AndroidInitializationSettings initializationSettingsAndroid =
           AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -49,7 +56,7 @@ class NotificationService {
   }
 
   // Request notification permissions
-  static Future<void> _requestPermissions() async {
+  Future<void> _requestPermissions() async {
     try {
       await _notifications
           .resolvePlatformSpecificImplementation<
@@ -70,26 +77,24 @@ class NotificationService {
   }
 
   // Handle notification tap
-  static void _onNotificationTapped(NotificationResponse response) {
+  void _onNotificationTapped(NotificationResponse response) {
     debugPrint('Notification tapped: ${response.payload}');
-    // TODO: Navigate to specific todo or home screen
-    // This would typically involve using a navigation service or global navigator
+    // Navigation will be handled by the provider
   }
 
-  // Schedule a notification for a todo
-  static Future<void> scheduleNotification(Todo todo) async {
-    if (!_initialized) await initialize();
-
-    if (todo.notificationTime == null) return;
+  // Schedule a notification for a task
+  Future<void> scheduleTaskNotification(Task task) async {
+    if (!_initialized) await initializeNotifications();
+    if (task.notificationTime == null) return;
 
     try {
       final channelId =
-          dotenv.env['NOTIFICATION_CHANNEL_ID'] ?? 'todo_notifications';
+          dotenv.env['NOTIFICATION_CHANNEL_ID'] ?? 'task_notifications';
       final channelName =
-          dotenv.env['NOTIFICATION_CHANNEL_NAME'] ?? 'Todo Reminders';
+          dotenv.env['NOTIFICATION_CHANNEL_NAME'] ?? 'Task Reminders';
       final channelDescription =
           dotenv.env['NOTIFICATION_CHANNEL_DESCRIPTION'] ??
-              'Notifications for todo due dates and reminders';
+              'Notifications for task due dates and reminders';
 
       final androidDetails = AndroidNotificationDetails(
         channelId,
@@ -99,7 +104,7 @@ class NotificationService {
         priority: Priority.high,
         showWhen: true,
         icon: '@mipmap/ic_launcher',
-        color: _getPriorityColor(todo.priority),
+        color: _getPriorityColor(task.priority),
       );
 
       const iosDetails = DarwinNotificationDetails(
@@ -113,45 +118,64 @@ class NotificationService {
         iOS: iosDetails,
       );
 
-      // Convert todo ID to a unique integer for notification ID
-      final notificationId = todo.id.hashCode;
+      // Convert task ID to a unique integer for notification ID
+      final notificationId = task.id.hashCode;
 
       await _notifications.zonedSchedule(
         notificationId,
-        _getNotificationTitle(todo),
-        _getNotificationBody(todo),
-        _convertToTZDateTime(todo.notificationTime!),
+        _getNotificationTitle(task),
+        _getNotificationBody(task),
+        _convertToTZDateTime(task.notificationTime!),
         notificationDetails,
-        payload: todo.id,
+        payload: task.id,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: _getDateTimeComponents(task.recurrence),
       );
 
-      debugPrint('Notification scheduled for todo: ${todo.title}');
+      debugPrint('Notification scheduled for task: ${task.title}');
     } catch (e) {
       debugPrint('Error scheduling notification: $e');
     }
   }
 
+  // Get DateTimeComponents for recurring notifications
+  DateTimeComponents? _getDateTimeComponents(String? recurrence) {
+    if (recurrence == null) return null;
+
+    switch (recurrence) {
+      case 'daily':
+        return DateTimeComponents.time;
+      case 'weekly':
+        return DateTimeComponents.dayOfWeekAndTime;
+      case 'monthly':
+        return DateTimeComponents.dayOfMonthAndTime;
+      case 'yearly':
+        return DateTimeComponents.dateAndTime;
+      default:
+        return null;
+    }
+  }
+
   // Schedule recurring notifications for daily/weekly reminders
-  static Future<void> scheduleRecurringNotification({
+  Future<void> scheduleRecurringNotification({
     required String id,
     required String title,
     required String body,
-    required RepeatInterval repeatInterval,
+    required String recurrence,
     required DateTime scheduledDate,
   }) async {
-    if (!_initialized) await initialize();
+    if (!_initialized) await initializeNotifications();
 
     try {
       final channelId =
-          dotenv.env['NOTIFICATION_CHANNEL_ID'] ?? 'todo_notifications';
+          dotenv.env['NOTIFICATION_CHANNEL_ID'] ?? 'recurring_notifications';
       final channelName =
-          dotenv.env['NOTIFICATION_CHANNEL_NAME'] ?? 'Todo Reminders';
+          dotenv.env['NOTIFICATION_CHANNEL_NAME'] ?? 'Recurring Reminders';
       final channelDescription =
           dotenv.env['NOTIFICATION_CHANNEL_DESCRIPTION'] ??
-              'Notifications for todo due dates and reminders';
+              'Daily and weekly reminder notifications';
 
       const androidDetails = AndroidNotificationDetails(
         'recurring_notifications',
@@ -170,35 +194,44 @@ class NotificationService {
 
       final notificationId = id.hashCode;
 
-      await _notifications.periodicallyShow(
+      // Handle different recurrence patterns
+      final tz.TZDateTime scheduledTZDateTime =
+          _convertToTZDateTime(scheduledDate);
+      DateTimeComponents? dateTimeComponents =
+          _getDateTimeComponents(recurrence);
+
+      await _notifications.zonedSchedule(
         notificationId,
         title,
         body,
-        repeatInterval,
+        scheduledTZDateTime,
         notificationDetails,
         payload: id,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: dateTimeComponents,
       );
 
-      debugPrint('Recurring notification scheduled: $title');
+      debugPrint('Recurring notification scheduled: $title ($recurrence)');
     } catch (e) {
       debugPrint('Error scheduling recurring notification: $e');
     }
   }
 
   // Cancel a specific notification
-  static Future<void> cancelNotification(String todoId) async {
+  Future<void> cancelNotification(String id) async {
     try {
-      final notificationId = todoId.hashCode;
+      final notificationId = id.hashCode;
       await _notifications.cancel(notificationId);
-      debugPrint('Notification cancelled for todo: $todoId');
+      debugPrint('Notification cancelled for id: $id');
     } catch (e) {
       debugPrint('Error cancelling notification: $e');
     }
   }
 
   // Cancel all notifications
-  static Future<void> cancelAllNotifications() async {
+  Future<void> cancelAllNotifications() async {
     try {
       await _notifications.cancelAll();
       debugPrint('All notifications cancelled');
@@ -208,8 +241,7 @@ class NotificationService {
   }
 
   // Get pending notifications
-  static Future<List<PendingNotificationRequest>>
-      getPendingNotifications() async {
+  Future<List<PendingNotificationRequest>> getPendingNotifications() async {
     try {
       return await _notifications.pendingNotificationRequests();
     } catch (e) {
@@ -219,19 +251,19 @@ class NotificationService {
   }
 
   // Show immediate notification
-  static Future<void> showNotification({
+  Future<void> showNotification({
     required String id,
     required String title,
     required String body,
     String? payload,
   }) async {
-    if (!_initialized) await initialize();
+    if (!_initialized) await initializeNotifications();
 
     try {
       final channelId =
-          dotenv.env['NOTIFICATION_CHANNEL_ID'] ?? 'todo_notifications';
+          dotenv.env['NOTIFICATION_CHANNEL_ID'] ?? 'task_notifications';
       final channelName =
-          dotenv.env['NOTIFICATION_CHANNEL_NAME'] ?? 'Todo Reminders';
+          dotenv.env['NOTIFICATION_CHANNEL_NAME'] ?? 'Task Reminders';
 
       final androidDetails = AndroidNotificationDetails(
         channelId,
@@ -264,27 +296,27 @@ class NotificationService {
   }
 
   // Helper methods
-  static String _getNotificationTitle(Todo todo) {
-    if (todo.isOverdue) {
-      return '⚠️ Overdue: ${todo.title}';
-    } else if (todo.isDueToday) {
-      return '📅 Due Today: ${todo.title}';
+  String _getNotificationTitle(Task task) {
+    if (task.isOverdue) {
+      return '⚠️ Overdue: ${task.title}';
+    } else if (task.isDueToday) {
+      return '📅 Due Today: ${task.title}';
     } else {
-      return '⏰ Reminder: ${todo.title}';
+      return '⏰ Reminder: ${task.title}';
     }
   }
 
-  static String _getNotificationBody(Todo todo) {
+  String _getNotificationBody(Task task) {
     String body = '';
 
-    if (todo.description.isNotEmpty) {
-      body = todo.description;
+    if (task.description.isNotEmpty) {
+      body = task.description;
     } else {
       body = 'Don\'t forget about this task!';
     }
 
-    if (todo.dueDate != null) {
-      final timeRemaining = todo.dueDate!.difference(DateTime.now());
+    if (task.dueDate != null) {
+      final timeRemaining = task.dueDate!.difference(DateTime.now());
       if (timeRemaining.inDays > 0) {
         body += '\n📅 Due in ${timeRemaining.inDays} days';
       } else if (timeRemaining.inHours > 0) {
@@ -297,7 +329,7 @@ class NotificationService {
     return body;
   }
 
-  static Color _getPriorityColor(int priority) {
+  Color _getPriorityColor(int priority) {
     switch (priority) {
       case 1: // High
         return Colors.red;
@@ -310,26 +342,92 @@ class NotificationService {
     }
   }
 
-  static _convertToTZDateTime(DateTime dateTime) {
-    // For simplicity, we'll use the local timezone
-    // In a production app, you might want to use the timezone package
-    return dateTime;
+  tz.TZDateTime _convertToTZDateTime(DateTime dateTime) {
+    final now = tz.TZDateTime.now(tz.local);
+    tz.TZDateTime scheduledDate = tz.TZDateTime(
+      tz.local,
+      dateTime.year,
+      dateTime.month,
+      dateTime.day,
+      dateTime.hour,
+      dateTime.minute,
+    );
+
+    // If the scheduledDate is in the past, add a day to schedule it for tomorrow
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+
+    return scheduledDate;
   }
 
   // Notification statistics
-  static Future<Map<String, int>> getNotificationStats() async {
+  Future<Map<String, int>> getNotificationStats() async {
     try {
       final pending = await getPendingNotifications();
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final tomorrow = today.add(const Duration(days: 1));
+
+      // This is a simplified implementation
       return {
         'total': pending.length,
-        'today': pending.where((notification) {
-          // This is a simplified check - in production you'd parse the scheduled date
-          return true; // placeholder
-        }).length,
+        'today':
+            pending.length, // In a real app, you would parse the scheduled date
       };
     } catch (e) {
       debugPrint('Error getting notification stats: $e');
       return {'total': 0, 'today': 0};
+    }
+  }
+
+  // Schedule a notification for notes with reminders
+  Future<void> scheduleNoteReminder(
+      String noteId, String title, DateTime reminderTime) async {
+    if (!_initialized) await initializeNotifications();
+
+    try {
+      final channelId =
+          dotenv.env['NOTIFICATION_CHANNEL_ID'] ?? 'note_reminders';
+      final channelName =
+          dotenv.env['NOTIFICATION_CHANNEL_NAME'] ?? 'Note Reminders';
+
+      final androidDetails = AndroidNotificationDetails(
+        channelId,
+        channelName,
+        importance: Importance.high,
+        priority: Priority.high,
+        icon: '@mipmap/ic_launcher',
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      final notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      final notificationId = noteId.hashCode;
+
+      await _notifications.zonedSchedule(
+        notificationId,
+        '📝 Note Reminder: $title',
+        'You asked to be reminded about this note.',
+        _convertToTZDateTime(reminderTime),
+        notificationDetails,
+        payload: 'note:$noteId',
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+      );
+
+      debugPrint('Note reminder scheduled for: $title');
+    } catch (e) {
+      debugPrint('Error scheduling note reminder: $e');
     }
   }
 }

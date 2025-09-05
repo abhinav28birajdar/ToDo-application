@@ -3,33 +3,50 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:share_plus/share_plus.dart';
+
+import '../models/task.dart';
+import '../models/note.dart';
+import '../models/category.dart';
+import '../models/app_settings.dart';
+import 'supabase/supabase_service.dart';
 
 class BackupService {
-  static const String _backupFileName = 'todo_backup.json';
+  static const String _backupFileName = 'pro_organizer_backup.json';
   static const String _backupFolder = 'backups';
 
+  final SupabaseService? _supabaseService;
+
+  BackupService({SupabaseService? supabaseService})
+      : _supabaseService = supabaseService;
+
   // Create a backup of all app data
-  static Future<String> createBackup({
-    required Map<String, dynamic> todos,
-    required Map<String, dynamic> categories,
-    required Map<String, dynamic> settings,
+  Future<String> createBackup({
+    required List<Task> tasks,
+    required List<Note> notes,
+    required List<Category> categories,
+    required AppSettings settings,
   }) async {
     try {
       final backupData = {
-        'version': '1.0.0',
+        'version': '2.0.0',
         'created': DateTime.now().toIso8601String(),
-        'appName': dotenv.env['APP_NAME'] ?? 'Flutter Todo App',
+        'appName': dotenv.env['APP_NAME'] ?? 'Pro-Organizer',
         'appVersion': dotenv.env['APP_VERSION'] ?? '1.0.0',
         'data': {
-          'todos': todos,
-          'categories': categories,
-          'settings': settings,
+          'tasks': tasks.map((task) => task.toJson()).toList(),
+          'notes': notes.map((note) => note.toJson()).toList(),
+          'categories':
+              categories.map((category) => category.toJson()).toList(),
+          'settings': settings.toJson(),
         },
         'metadata': {
-          'totalTodos': todos['todosCount'] ?? 0,
-          'totalCategories': categories['categoriesCount'] ?? 0,
+          'totalTasks': tasks.length,
+          'totalNotes': notes.length,
+          'totalCategories': categories.length,
           'devicePlatform': Platform.operatingSystem,
           'backupType': 'full',
+          'userId': _supabaseService?.currentUser?.id
         }
       };
 
@@ -41,7 +58,7 @@ class BackupService {
       }
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'backup_$timestamp.json';
+      final fileName = 'pro_organizer_backup_$timestamp.json';
       final file = File('${backupDir.path}/$fileName');
 
       final jsonString = json.encode(backupData);
@@ -49,6 +66,16 @@ class BackupService {
 
       // Clean up old backups
       await _cleanupOldBackups(backupDir);
+
+      // Also backup to Supabase if available and authenticated
+      if (_supabaseService != null && _supabaseService!.isSignedIn) {
+        await _backupToSupabase(
+          tasks: tasks,
+          notes: notes,
+          categories: categories,
+          settings: settings,
+        );
+      }
 
       debugPrint('Backup created successfully: ${file.path}');
       return file.path;
@@ -58,11 +85,56 @@ class BackupService {
     }
   }
 
+  // Backup to Supabase cloud
+  Future<void> _backupToSupabase({
+    required List<Task> tasks,
+    required List<Note> notes,
+    required List<Category> categories,
+    required AppSettings settings,
+  }) async {
+    try {
+      // Check if Supabase service is available and user is authenticated
+      if (_supabaseService == null || !_supabaseService!.isSignedIn) {
+        debugPrint('Skipping Supabase backup - not authenticated');
+        return;
+      }
+
+      final userId = _supabaseService!.currentUser!.id;
+
+      // Create a backup record
+      final backupRecord = {
+        'user_id': userId,
+        'created_at': DateTime.now().toIso8601String(),
+        'metadata': {
+          'totalTasks': tasks.length,
+          'totalNotes': notes.length,
+          'totalCategories': categories.length,
+          'devicePlatform': Platform.operatingSystem,
+        },
+        'data': {
+          'tasks': tasks.map((task) => task.toSupabase()).toList(),
+          'notes': notes.map((note) => note.toSupabase()).toList(),
+          'categories':
+              categories.map((category) => category.toSupabase()).toList(),
+          'settings': settings.toSupabase(),
+        }
+      };
+
+      // Insert into backups table
+      await SupabaseService.client.from('backups').insert(backupRecord);
+
+      debugPrint('Backup to Supabase completed successfully');
+    } catch (e) {
+      debugPrint('Error backing up to Supabase: $e');
+    }
+  }
+
   // Create an automatic backup
-  static Future<void> createAutoBackup({
-    required Map<String, dynamic> todos,
-    required Map<String, dynamic> categories,
-    required Map<String, dynamic> settings,
+  Future<void> createAutoBackup({
+    required List<Task> tasks,
+    required List<Note> notes,
+    required List<Category> categories,
+    required AppSettings settings,
   }) async {
     try {
       final backupEnabled =
@@ -82,7 +154,8 @@ class BackupService {
       }
 
       await createBackup(
-        todos: todos,
+        tasks: tasks,
+        notes: notes,
         categories: categories,
         settings: settings,
       );
@@ -94,7 +167,7 @@ class BackupService {
   }
 
   // Restore data from a backup file
-  static Future<Map<String, dynamic>> restoreFromBackup(String filePath) async {
+  Future<Map<String, dynamic>> restoreFromBackup(String filePath) async {
     try {
       final file = File(filePath);
       if (!await file.exists()) {
@@ -118,7 +191,7 @@ class BackupService {
   }
 
   // Get list of available backup files
-  static Future<List<Map<String, dynamic>>> getAvailableBackups() async {
+  Future<List<Map<String, dynamic>>> getAvailableBackups() async {
     try {
       final directory = await getApplicationDocumentsDirectory();
       final backupDir = Directory('${directory.path}/$_backupFolder');
@@ -171,7 +244,7 @@ class BackupService {
   }
 
   // Delete a backup file
-  static Future<void> deleteBackup(String filePath) async {
+  Future<void> deleteBackup(String filePath) async {
     try {
       final file = File(filePath);
       if (await file.exists()) {
@@ -185,8 +258,7 @@ class BackupService {
   }
 
   // Export backup to external storage (for sharing)
-  static Future<String> exportBackup(
-      String backupPath, String exportPath) async {
+  Future<String> exportBackup(String backupPath, String exportPath) async {
     try {
       final sourceFile = File(backupPath);
       final targetFile = File(exportPath);
@@ -202,7 +274,7 @@ class BackupService {
   }
 
   // Import backup from external source
-  static Future<String> importBackup(String sourcePath) async {
+  Future<String> importBackup(String sourcePath) async {
     try {
       final sourceFile = File(sourcePath);
       if (!await sourceFile.exists()) {
@@ -240,7 +312,7 @@ class BackupService {
   }
 
   // Get backup statistics
-  static Future<Map<String, dynamic>> getBackupStats() async {
+  Future<Map<String, dynamic>> getBackupStats() async {
     try {
       final backups = await getAvailableBackups();
       int totalSize = 0;
@@ -269,7 +341,7 @@ class BackupService {
   }
 
   // Private helper methods
-  static Future<void> _cleanupOldBackups(Directory backupDir) async {
+  Future<void> _cleanupOldBackups(Directory backupDir) async {
     try {
       final maxBackups =
           int.tryParse(dotenv.env['MAX_BACKUP_FILES'] ?? '5') ?? 5;
@@ -297,7 +369,7 @@ class BackupService {
     }
   }
 
-  static bool _validateBackupStructure(Map<String, dynamic> backupData) {
+  bool _validateBackupStructure(Map<String, dynamic> backupData) {
     try {
       return backupData.containsKey('version') &&
           backupData.containsKey('created') &&
@@ -308,7 +380,7 @@ class BackupService {
     }
   }
 
-  static Future<DateTime?> getLastBackupTime() async {
+  Future<DateTime?> getLastBackupTime() async {
     try {
       final directory = await getApplicationDocumentsDirectory();
       final file = File('${directory.path}/last_backup_time.txt');
@@ -324,13 +396,94 @@ class BackupService {
     }
   }
 
-  static Future<void> _saveLastBackupTime() async {
+  Future<void> _saveLastBackupTime() async {
     try {
       final directory = await getApplicationDocumentsDirectory();
       final file = File('${directory.path}/last_backup_time.txt');
       await file.writeAsString(DateTime.now().toIso8601String());
     } catch (e) {
       debugPrint('Error saving last backup time: $e');
+    }
+  }
+
+  // Restore data from Supabase cloud backup
+  Future<Map<String, dynamic>> restoreFromSupabase() async {
+    try {
+      // Check if Supabase service is available and user is authenticated
+      if (_supabaseService == null || !_supabaseService!.isSignedIn) {
+        throw Exception(
+            'You must be signed in to restore data from cloud backup.');
+      }
+
+      final userId = _supabaseService!.currentUser!.id;
+
+      // Get the latest backup
+      final Map<String, dynamic> response;
+
+      try {
+        response = await SupabaseService.client
+            .from('backups')
+            .select()
+            .eq('user_id', userId)
+            .order('created_at', ascending: false)
+            .limit(1)
+            .single();
+      } catch (e) {
+        throw Exception('No backup found in the cloud: $e');
+      }
+
+      final backupData = response['data'] as Map<String, dynamic>;
+
+      // Parse tasks
+      final tasksData = backupData['tasks'] as List;
+      final tasks =
+          tasksData.map((taskMap) => Task.fromSupabase(taskMap)).toList();
+
+      // Parse notes
+      final notesData = backupData['notes'] as List;
+      final notes =
+          notesData.map((noteMap) => Note.fromSupabase(noteMap)).toList();
+
+      // Parse categories
+      final categoriesData = backupData['categories'] as List;
+      final categories = categoriesData
+          .map((categoryMap) => Category.fromSupabase(categoryMap))
+          .toList();
+
+      // Parse settings
+      final settingsData = backupData['settings'] as Map<String, dynamic>;
+      final settings = AppSettings.fromSupabase(settingsData);
+
+      return {
+        'tasks': tasks,
+        'notes': notes,
+        'categories': categories,
+        'settings': settings,
+      };
+    } catch (e) {
+      debugPrint('Error restoring from Supabase: $e');
+      rethrow;
+    }
+  }
+
+  // Share a backup file using the share_plus package
+  Future<void> shareBackup(String backupPath) async {
+    try {
+      final file = File(backupPath);
+      if (!await file.exists()) {
+        throw Exception('Backup file not found');
+      }
+
+      await Share.shareXFiles(
+        [XFile(backupPath)],
+        subject: 'Pro-Organizer Backup',
+        text: 'Here is my Pro-Organizer data backup from ${DateTime.now()}',
+      );
+
+      debugPrint('Backup shared successfully: $backupPath');
+    } catch (e) {
+      debugPrint('Error sharing backup: $e');
+      rethrow;
     }
   }
 }

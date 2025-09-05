@@ -17,20 +17,23 @@ class CategoryAdapter extends TypeAdapter<Category> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return Category(
-      id: fields[0] as String,
+      id: fields[0] as String?,
       name: fields[1] as String,
       description: fields[2] as String,
       colorValue: fields[3] as int,
       iconData: fields[4] as IconData,
-      creationDate: fields[5] as DateTime,
+      createdAt: fields[5] as DateTime?,
+      updatedAt: fields[7] as DateTime?,
       isDefault: fields[6] as bool,
+      userId: fields[8] as String?,
+      icon: fields[9] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, Category obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(10)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -42,9 +45,15 @@ class CategoryAdapter extends TypeAdapter<Category> {
       ..writeByte(4)
       ..write(obj.iconData)
       ..writeByte(5)
-      ..write(obj.creationDate)
+      ..write(obj.createdAt)
       ..writeByte(6)
-      ..write(obj.isDefault);
+      ..write(obj.isDefault)
+      ..writeByte(7)
+      ..write(obj.updatedAt)
+      ..writeByte(8)
+      ..write(obj.userId)
+      ..writeByte(9)
+      ..write(obj.icon);
   }
 
   @override

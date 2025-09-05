@@ -13,6 +13,8 @@ import '../widgets/statistics_card.dart';
 import 'add_edit_todo_screen.dart';
 import 'settings_screen.dart';
 import 'categories_screen.dart';
+import 'tasks_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -30,6 +32,27 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+
+    // Initialize data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadInitialData();
+    });
+  }
+
+  Future<void> _loadInitialData() async {
+    try {
+      final todoProvider = Provider.of<TodoProvider>(context, listen: false);
+      await todoProvider.fetchTasks();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading data: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -248,10 +271,10 @@ class _HomeScreenState extends State<HomeScreen>
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildTodoList(todoProvider, 'all'),
-                    _buildTodoList(todoProvider, 'active'),
-                    _buildTodoList(todoProvider, 'completed'),
-                    _buildTodoList(todoProvider, 'overdue'),
+                    const TasksScreen(), // Use our new TasksScreen
+                    const TasksScreen(), // For now, use TasksScreen for all tabs
+                    const TasksScreen(),
+                    const TasksScreen(),
                   ],
                 ),
               ),
@@ -323,6 +346,18 @@ class _HomeScreenState extends State<HomeScreen>
                 },
               ),
               ListTile(
+                leading: const Icon(Icons.person),
+                title: const Text('Profile'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const ProfileScreen()),
+                  );
+                },
+              ),
+              ListTile(
                 leading: const Icon(Icons.settings),
                 title: const Text('Settings'),
                 onTap: () {
@@ -366,23 +401,33 @@ class _HomeScreenState extends State<HomeScreen>
 
   Widget _buildTodoList(TodoProvider todoProvider, String filter) {
     // Apply the appropriate filter
-    List<Todo> filteredTodos;
+    List<Todo> filteredTodos = [];
+    // Convert Task list to Todo list for compatibility
     switch (filter) {
       case 'active':
-        filteredTodos =
+        final activeTasks =
             todoProvider.allTodos.where((todo) => !todo.isCompleted).toList();
+        filteredTodos =
+            activeTasks.map((task) => todoProvider.taskToTodo(task)).toList();
         break;
       case 'completed':
-        filteredTodos =
+        final completedTasks =
             todoProvider.allTodos.where((todo) => todo.isCompleted).toList();
+        filteredTodos = completedTasks
+            .map((task) => todoProvider.taskToTodo(task))
+            .toList();
         break;
       case 'overdue':
-        filteredTodos =
+        final overdueTasks =
             todoProvider.allTodos.where((todo) => todo.isOverdue).toList();
+        filteredTodos =
+            overdueTasks.map((task) => todoProvider.taskToTodo(task)).toList();
         break;
       case 'all':
       default:
-        filteredTodos = todoProvider.todos;
+        filteredTodos = todoProvider.todos
+            .map((task) => todoProvider.taskToTodo(task))
+            .toList();
         break;
     }
 
