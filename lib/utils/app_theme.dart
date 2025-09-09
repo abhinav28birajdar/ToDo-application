@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Define the color palette
+  // Define the color palette with Fuchsia-600 as primary
+  static const Color fuchsia600 = Color(0xFFC026D3); // Fuchsia-600 #c026d3
   static const Color darkOlive = Color(0xFF3E3F29);
   static const Color sageGreen = Color(0xFF7D8D86);
   static const Color beigeSand = Color(0xFFBCA88D);
   static const Color offWhite = Color(0xFFF1F0E4);
 
   // Dark theme variations
-  static final Color darkBackground = darkOlive.withOpacity(0.95);
-  static final Color darkSurface = darkOlive.withOpacity(0.8);
-  static final Color darkSageGreen = sageGreen.withOpacity(0.8);
-  static final Color darkBeigeSand = beigeSand.withOpacity(0.7);
+  static final Color darkBackground =
+      const Color(0xFF000000); // Pure black for dark mode
+  static final Color darkSurface = Colors.grey[900]!;
+  static final Color lightBackground =
+      Colors.white; // Pure white for light mode
 
-  // Create a MaterialColor from darkOlive for primarySwatch
+  // Create a MaterialColor from fuchsia600 for primarySwatch
   static MaterialColor createMaterialColor(Color color) {
     List<double> strengths = <double>[.05, .1, .2, .3, .4, .5, .6, .7, .8, .9];
     Map<int, Color> swatch = {};
@@ -34,40 +36,40 @@ class AppTheme {
   // Light Theme
   static ThemeData get lightTheme {
     return ThemeData(
-      primarySwatch: createMaterialColor(darkOlive),
+      primarySwatch: createMaterialColor(fuchsia600),
       colorScheme: ColorScheme.light(
-        primary: sageGreen,
-        onPrimary: offWhite,
-        secondary: beigeSand,
-        onSecondary: darkOlive,
-        background: offWhite,
-        onBackground: darkOlive,
-        surface: beigeSand.withOpacity(0.3),
-        onSurface: darkOlive,
+        primary: fuchsia600,
+        onPrimary: Colors.white,
+        secondary: fuchsia600,
+        onSecondary: Colors.white,
+        background: lightBackground,
+        onBackground: Colors.black,
+        surface: Colors.white,
+        onSurface: Colors.black,
         error: Colors.redAccent,
-        onError: offWhite,
+        onError: Colors.white,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: darkOlive,
-        foregroundColor: offWhite,
+        backgroundColor: fuchsia600,
+        foregroundColor: Colors.white,
         elevation: 0,
       ),
-      scaffoldBackgroundColor: offWhite,
+      scaffoldBackgroundColor: lightBackground,
       cardTheme: CardThemeData(
-        color: beigeSand.withOpacity(0.7),
+        color: Colors.white,
         elevation: 2,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: sageGreen,
-        foregroundColor: offWhite,
+        backgroundColor: fuchsia600,
+        foregroundColor: Colors.white,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          foregroundColor: offWhite,
-          backgroundColor: sageGreen,
+          foregroundColor: Colors.white,
+          backgroundColor: fuchsia600,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -76,36 +78,36 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: sageGreen,
+          foregroundColor: fuchsia600,
         ),
       ),
       checkboxTheme: CheckboxThemeData(
         fillColor: MaterialStateProperty.resolveWith<Color>((states) {
           if (states.contains(MaterialState.selected)) {
-            return sageGreen;
+            return fuchsia600;
           }
           return Colors.transparent;
         }),
-        checkColor: MaterialStateProperty.all(offWhite),
-        side: const BorderSide(color: sageGreen, width: 1.5),
+        checkColor: MaterialStateProperty.all(Colors.white),
+        side: const BorderSide(color: fuchsia600, width: 1.5),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(4),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: offWhite,
+        fillColor: Colors.white,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: sageGreen, width: 1.5),
+          borderSide: const BorderSide(color: fuchsia600, width: 1.5),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: sageGreen, width: 1.5),
+          borderSide: const BorderSide(color: fuchsia600, width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: darkOlive, width: 2),
+          borderSide: const BorderSide(color: fuchsia600, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -117,25 +119,27 @@ class AppTheme {
         ),
       ),
       textTheme: const TextTheme(
-        headlineLarge: TextStyle(color: darkOlive, fontWeight: FontWeight.bold),
+        headlineLarge:
+            TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         headlineMedium:
-            TextStyle(color: darkOlive, fontWeight: FontWeight.bold),
-        titleLarge: TextStyle(color: darkOlive, fontWeight: FontWeight.bold),
-        titleMedium: TextStyle(color: darkOlive, fontWeight: FontWeight.w600),
-        bodyLarge: TextStyle(color: darkOlive),
-        bodyMedium: TextStyle(color: darkOlive),
+            TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        titleLarge: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        titleMedium:
+            TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+        bodyLarge: TextStyle(color: Colors.black),
+        bodyMedium: TextStyle(color: Colors.black),
       ),
       dividerTheme: const DividerThemeData(
-        color: sageGreen,
+        color: fuchsia600,
         thickness: 1,
       ),
       tabBarTheme: const TabBarThemeData(
-        labelColor: offWhite,
-        unselectedLabelColor: offWhite,
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.white,
         indicator: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: offWhite,
+              color: Colors.white,
               width: 2,
             ),
           ),
@@ -144,13 +148,13 @@ class AppTheme {
       switchTheme: SwitchThemeData(
         thumbColor: MaterialStateProperty.resolveWith((states) {
           if (states.contains(MaterialState.selected)) {
-            return sageGreen;
+            return fuchsia600;
           }
-          return offWhite;
+          return Colors.grey;
         }),
         trackColor: MaterialStateProperty.resolveWith((states) {
           if (states.contains(MaterialState.selected)) {
-            return sageGreen.withOpacity(0.5);
+            return fuchsia600.withOpacity(0.5);
           }
           return Colors.grey.withOpacity(0.5);
         }),
@@ -163,22 +167,22 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      primarySwatch: createMaterialColor(sageGreen),
+      primarySwatch: createMaterialColor(fuchsia600),
       colorScheme: ColorScheme.dark(
-        primary: sageGreen,
-        onPrimary: offWhite,
-        secondary: beigeSand,
-        onSecondary: darkOlive,
+        primary: fuchsia600,
+        onPrimary: Colors.white,
+        secondary: fuchsia600,
+        onSecondary: Colors.white,
         background: darkBackground,
-        onBackground: offWhite,
+        onBackground: Colors.white,
         surface: darkSurface,
-        onSurface: offWhite,
+        onSurface: Colors.white,
         error: Colors.redAccent,
-        onError: offWhite,
+        onError: Colors.white,
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: darkBackground,
-        foregroundColor: offWhite,
+        foregroundColor: Colors.white,
         elevation: 0,
       ),
       scaffoldBackgroundColor: darkBackground,
@@ -190,13 +194,13 @@ class AppTheme {
         ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: darkSageGreen,
-        foregroundColor: offWhite,
+        backgroundColor: fuchsia600,
+        foregroundColor: Colors.white,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          foregroundColor: offWhite,
-          backgroundColor: darkSageGreen,
+          foregroundColor: Colors.white,
+          backgroundColor: fuchsia600,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -205,36 +209,36 @@ class AppTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: sageGreen,
+          foregroundColor: fuchsia600,
         ),
       ),
       checkboxTheme: CheckboxThemeData(
         fillColor: MaterialStateProperty.resolveWith<Color>((states) {
           if (states.contains(MaterialState.selected)) {
-            return sageGreen;
+            return fuchsia600;
           }
           return Colors.transparent;
         }),
-        checkColor: MaterialStateProperty.all(offWhite),
-        side: BorderSide(color: sageGreen, width: 1.5),
+        checkColor: MaterialStateProperty.all(Colors.white),
+        side: BorderSide(color: fuchsia600, width: 1.5),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(4),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: darkBackground.withOpacity(0.6),
+        fillColor: darkSurface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: sageGreen, width: 1.5),
+          borderSide: BorderSide(color: fuchsia600, width: 1.5),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: sageGreen, width: 1.5),
+          borderSide: BorderSide(color: fuchsia600, width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: beigeSand, width: 2),
+          borderSide: BorderSide(color: fuchsia600, width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -247,26 +251,27 @@ class AppTheme {
       ),
       textTheme: TextTheme(
         headlineLarge:
-            const TextStyle(color: offWhite, fontWeight: FontWeight.bold),
+            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         headlineMedium:
-            const TextStyle(color: offWhite, fontWeight: FontWeight.bold),
+            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         titleLarge:
-            const TextStyle(color: offWhite, fontWeight: FontWeight.bold),
-        titleMedium: TextStyle(color: offWhite, fontWeight: FontWeight.w600),
-        bodyLarge: const TextStyle(color: offWhite),
-        bodyMedium: const TextStyle(color: offWhite),
+            const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        titleMedium:
+            TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        bodyLarge: const TextStyle(color: Colors.white),
+        bodyMedium: const TextStyle(color: Colors.white),
       ),
       dividerTheme: DividerThemeData(
-        color: sageGreen.withOpacity(0.5),
+        color: fuchsia600.withOpacity(0.5),
         thickness: 1,
       ),
       tabBarTheme: TabBarThemeData(
-        labelColor: offWhite,
-        unselectedLabelColor: offWhite.withOpacity(0.6),
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.white.withOpacity(0.6),
         indicator: const BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: offWhite,
+              color: Colors.white,
               width: 2,
             ),
           ),
@@ -275,19 +280,19 @@ class AppTheme {
       switchTheme: SwitchThemeData(
         thumbColor: MaterialStateProperty.resolveWith((states) {
           if (states.contains(MaterialState.selected)) {
-            return sageGreen;
+            return fuchsia600;
           }
           return Colors.grey;
         }),
         trackColor: MaterialStateProperty.resolveWith((states) {
           if (states.contains(MaterialState.selected)) {
-            return sageGreen.withOpacity(0.5);
+            return fuchsia600.withOpacity(0.5);
           }
           return Colors.grey.withOpacity(0.3);
         }),
       ),
       iconTheme: const IconThemeData(
-        color: sageGreen,
+        color: fuchsia600,
       ),
     );
   }

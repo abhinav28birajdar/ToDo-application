@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 
-import '../models/task.dart';
 import '../models/todo.dart';
-import '../providers/todo_provider.dart';
+import '../providers/task_provider.dart';
 import '../providers/category_provider.dart';
 
 import '../widgets/todo_list_tile.dart';
@@ -39,7 +37,7 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Future<void> _refreshTasks() async {
-    await Provider.of<TodoProvider>(context, listen: false).loadTasks();
+    await Provider.of<TaskProvider>(context, listen: false).loadTasks();
   }
 
   void _toggleSearch() {
@@ -48,7 +46,7 @@ class _TasksScreenState extends State<TasksScreen> {
       if (!_isSearchVisible) {
         _searchQuery = '';
         _searchController.clear();
-        Provider.of<TodoProvider>(context, listen: false).setSearchQuery('');
+        Provider.of<TaskProvider>(context, listen: false).setSearchQuery('');
       } else {
         FocusScope.of(context).requestFocus(FocusNode());
       }
@@ -59,7 +57,7 @@ class _TasksScreenState extends State<TasksScreen> {
     setState(() {
       _searchQuery = query;
     });
-    Provider.of<TodoProvider>(context, listen: false).setSearchQuery(query);
+    Provider.of<TaskProvider>(context, listen: false).setSearchQuery(query);
   }
 
   void _clearSearch() {
@@ -67,7 +65,7 @@ class _TasksScreenState extends State<TasksScreen> {
       _searchQuery = '';
       _searchController.clear();
     });
-    Provider.of<TodoProvider>(context, listen: false).setSearchQuery('');
+    Provider.of<TaskProvider>(context, listen: false).setSearchQuery('');
   }
 
   void _navigateToAddTaskScreen() {
@@ -79,24 +77,7 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  void _navigateToEditTaskScreen(Task task) {
-    // Convert Task to Todo for the AddEditTodoScreen
-    final todo = Todo(
-      id: task.id,
-      title: task.title,
-      description: task.description,
-      isCompleted: task.isCompleted,
-      creationDate: task.createdAt,
-      dueDate: task.dueDate,
-      categoryId: task.categoryId,
-      priority: task.priority,
-      tags: const [], // Task doesn't have tags
-      hasNotification: task.notificationTime != null,
-      notificationTime: task.notificationTime,
-      completionDate: task.completedDate,
-      notes: task.description, // Use description as notes
-    );
-
+  void _navigateToEditTaskScreen(Todo todo) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => AddEditTodoScreen(todo: todo),
@@ -105,9 +86,9 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Widget _buildFilterChips() {
-    return Consumer<TodoProvider>(
-      builder: (context, todoProvider, child) {
-        final selectedFilter = todoProvider.filterOption;
+    return Consumer<TaskProvider>(
+      builder: (context, taskProvider, child) {
+        final selectedFilter = taskProvider.filterOption;
 
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -116,9 +97,9 @@ class _TasksScreenState extends State<TasksScreen> {
             child: Row(
               children: [
                 FilterChip(
-                  label: Text('All (${todoProvider.totalTodos})'),
+                  label: Text('All (${taskProvider.totalTodos})'),
                   selected: selectedFilter == 'all',
-                  onSelected: (_) => todoProvider.setFilterOption('all'),
+                  onSelected: (_) => taskProvider.setFilterOption('all'),
                   backgroundColor: Theme.of(context).colorScheme.surface,
                   selectedColor: Theme.of(context).colorScheme.primary,
                   labelStyle: TextStyle(
@@ -129,9 +110,9 @@ class _TasksScreenState extends State<TasksScreen> {
                 ),
                 const SizedBox(width: 8),
                 FilterChip(
-                  label: Text('Active (${todoProvider.activeTodos})'),
+                  label: Text('Active (${taskProvider.activeTodos})'),
                   selected: selectedFilter == 'active',
-                  onSelected: (_) => todoProvider.setFilterOption('active'),
+                  onSelected: (_) => taskProvider.setFilterOption('active'),
                   backgroundColor: Theme.of(context).colorScheme.surface,
                   selectedColor: Theme.of(context).colorScheme.primary,
                   labelStyle: TextStyle(
@@ -142,9 +123,9 @@ class _TasksScreenState extends State<TasksScreen> {
                 ),
                 const SizedBox(width: 8),
                 FilterChip(
-                  label: Text('Completed (${todoProvider.completedTodos})'),
+                  label: Text('Completed (${taskProvider.completedTodos})'),
                   selected: selectedFilter == 'completed',
-                  onSelected: (_) => todoProvider.setFilterOption('completed'),
+                  onSelected: (_) => taskProvider.setFilterOption('completed'),
                   backgroundColor: Theme.of(context).colorScheme.surface,
                   selectedColor: Theme.of(context).colorScheme.primary,
                   labelStyle: TextStyle(
@@ -155,9 +136,9 @@ class _TasksScreenState extends State<TasksScreen> {
                 ),
                 const SizedBox(width: 8),
                 FilterChip(
-                  label: Text('Overdue (${todoProvider.overdueTodos})'),
+                  label: Text('Overdue (${taskProvider.overdueTodos})'),
                   selected: selectedFilter == 'overdue',
-                  onSelected: (_) => todoProvider.setFilterOption('overdue'),
+                  onSelected: (_) => taskProvider.setFilterOption('overdue'),
                   backgroundColor: Theme.of(context).colorScheme.surface,
                   selectedColor: Theme.of(context).colorScheme.primary,
                   labelStyle: TextStyle(
@@ -168,9 +149,9 @@ class _TasksScreenState extends State<TasksScreen> {
                 ),
                 const SizedBox(width: 8),
                 FilterChip(
-                  label: Text('Today (${todoProvider.dueTodayTodos})'),
+                  label: Text('Today (${taskProvider.dueTodayTodos})'),
                   selected: selectedFilter == 'today',
-                  onSelected: (_) => todoProvider.setFilterOption('today'),
+                  onSelected: (_) => taskProvider.setFilterOption('today'),
                   backgroundColor: Theme.of(context).colorScheme.surface,
                   selectedColor: Theme.of(context).colorScheme.primary,
                   labelStyle: TextStyle(
@@ -188,9 +169,9 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Widget _buildCategoryFilterChips() {
-    return Consumer2<TodoProvider, CategoryProvider>(
-      builder: (context, todoProvider, categoryProvider, child) {
-        final selectedCategoryId = todoProvider.selectedCategoryId;
+    return Consumer2<TaskProvider, CategoryProvider>(
+      builder: (context, taskProvider, categoryProvider, child) {
+        final selectedCategoryId = taskProvider.selectedCategoryId;
         final categories = categoryProvider.categories;
 
         if (categories.isEmpty) {
@@ -211,9 +192,9 @@ class _TasksScreenState extends State<TasksScreen> {
                       selected: category.id == selectedCategoryId,
                       onSelected: (_) {
                         if (category.id == selectedCategoryId) {
-                          todoProvider.setCategoryFilter(null);
+                          taskProvider.setCategoryFilter(null);
                         } else {
-                          todoProvider.setCategoryFilter(category.id);
+                          taskProvider.setCategoryFilter(category.id);
                         }
                       },
                       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -236,13 +217,13 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Widget _buildSortMenu() {
-    return Consumer<TodoProvider>(
-      builder: (context, todoProvider, child) {
+    return Consumer<TaskProvider>(
+      builder: (context, taskProvider, child) {
         return PopupMenuButton<String>(
           icon: const Icon(Icons.sort),
           tooltip: 'Sort tasks',
           onSelected: (value) {
-            todoProvider.setSortOrder(value);
+            taskProvider.setSortOrder(value);
           },
           itemBuilder: (context) => [
             const PopupMenuItem(
@@ -322,7 +303,7 @@ class _TasksScreenState extends State<TasksScreen> {
                         TextButton(
                           onPressed: () {
                             Navigator.of(context).pop();
-                            Provider.of<TodoProvider>(context, listen: false)
+                            Provider.of<TaskProvider>(context, listen: false)
                                 .deleteCompletedTasks();
                           },
                           child: const Text('Delete'),
@@ -332,11 +313,11 @@ class _TasksScreenState extends State<TasksScreen> {
                   );
                   break;
                 case 'mark_all_completed':
-                  Provider.of<TodoProvider>(context, listen: false)
+                  Provider.of<TaskProvider>(context, listen: false)
                       .markAllAsCompleted();
                   break;
                 case 'clear_filters':
-                  Provider.of<TodoProvider>(context, listen: false)
+                  Provider.of<TaskProvider>(context, listen: false)
                       .clearFilters();
                   _clearSearch();
                   break;
@@ -369,10 +350,10 @@ class _TasksScreenState extends State<TasksScreen> {
             _buildCategoryFilterChips(),
             const SizedBox(height: 8),
             Expanded(
-              child: Consumer<TodoProvider>(
-                builder: (context, todoProvider, child) {
-                  final tasks = todoProvider.todos;
-                  final isLoading = todoProvider.isLoading;
+              child: Consumer<TaskProvider>(
+                builder: (context, taskProvider, child) {
+                  final tasks = taskProvider.todos;
+                  final isLoading = taskProvider.isLoading;
 
                   if (isLoading) {
                     return const Center(child: CircularProgressIndicator());
@@ -392,8 +373,8 @@ class _TasksScreenState extends State<TasksScreen> {
                           Text(
                             _searchQuery.isNotEmpty
                                 ? 'No tasks matching "${_searchQuery}"'
-                                : todoProvider.filterOption != 'all'
-                                    ? 'No ${todoProvider.filterOption} tasks'
+                                : taskProvider.filterOption != 'all'
+                                    ? 'No ${taskProvider.filterOption} tasks'
                                     : 'No tasks yet',
                             style: theme.textTheme.titleLarge,
                           ),
@@ -418,33 +399,16 @@ class _TasksScreenState extends State<TasksScreen> {
                     padding: const EdgeInsets.only(bottom: 100),
                     itemCount: tasks.length,
                     itemBuilder: (context, index) {
-                      final task = tasks[index];
-                      // Create a temporary Todo from Task for TodoListTile
-                      // Convert Task to Todo for compatibility with TodoListTile
-                      final todo = Todo(
-                        id: task.id,
-                        title: task.title,
-                        description: task.description,
-                        isCompleted: task.isCompleted,
-                        creationDate: task.createdAt,
-                        dueDate: task.dueDate,
-                        categoryId: task.categoryId,
-                        priority: task.priority,
-                        tags: const [], // Task doesn't have tags
-                        hasNotification: task.notificationTime != null,
-                        notificationTime: task.notificationTime,
-                        completionDate: task.completedDate,
-                        notes: task.description, // Use description as notes
-                      );
+                      final todo = tasks[index]; // tasks is now List<Todo>
 
                       return TodoListTile(
                         todo: todo,
                         onToggle: () {
-                          todoProvider.toggleTodoStatus(task);
+                          taskProvider.toggleTodoStatus(todo);
                         },
-                        onEdit: () => _navigateToEditTaskScreen(task),
+                        onEdit: () => _navigateToEditTaskScreen(todo),
                         onDelete: () {
-                          todoProvider.deleteTodo(task.id);
+                          taskProvider.deleteTodo(todo.id);
                         },
                       );
                     },

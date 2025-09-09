@@ -129,6 +129,55 @@ class Todo extends HiveObject {
     return today.isAtSameMomentAs(due);
   }
 
+  // Compatibility getter for createdAt
+  DateTime get createdAt => creationDate;
+
+  // Factory constructor for creating Todo from JSON
+  factory Todo.fromJson(Map<String, dynamic> json) {
+    return Todo(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      description: json['description'] as String? ?? '',
+      isCompleted: json['is_completed'] as bool? ?? false,
+      creationDate: json['created_at'] != null 
+          ? DateTime.parse(json['created_at'] as String)
+          : DateTime.now(),
+      dueDate: json['due_date'] != null 
+          ? DateTime.parse(json['due_date'] as String)
+          : null,
+      categoryId: json['category_id'] as String?,
+      priority: json['priority'] as int? ?? 2,
+      tags: (json['tags'] as List<dynamic>?)?.cast<String>() ?? [],
+      hasNotification: json['has_notification'] as bool? ?? false,
+      notificationTime: json['notification_time'] != null 
+          ? DateTime.parse(json['notification_time'] as String)
+          : null,
+      completionDate: json['completed_date'] != null 
+          ? DateTime.parse(json['completed_date'] as String)
+          : null,
+      notes: json['notes'] as String?,
+    );
+  }
+
+  // Convert Todo to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'is_completed': isCompleted,
+      'created_at': creationDate.toIso8601String(),
+      'due_date': dueDate?.toIso8601String(),
+      'category_id': categoryId,
+      'priority': priority,
+      'tags': tags,
+      'has_notification': hasNotification,
+      'notification_time': notificationTime?.toIso8601String(),
+      'completed_date': completionDate?.toIso8601String(),
+      'notes': notes,
+    };
+  }
+
   @override
   String toString() {
     return 'Todo{id: $id, title: $title, isCompleted: $isCompleted, priority: $priority}';

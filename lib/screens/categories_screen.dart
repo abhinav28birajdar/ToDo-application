@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/category_provider.dart';
-import '../providers/todo_provider.dart';
+import '../providers/hybrid_category_provider.dart';
+import '../providers/hybrid_task_provider.dart';
 import '../models/category.dart';
 
 class CategoriesScreen extends StatelessWidget {
@@ -20,8 +20,8 @@ class CategoriesScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Consumer2<CategoryProvider, TodoProvider>(
-        builder: (context, categoryProvider, todoProvider, child) {
+      body: Consumer2<HybridCategoryProvider, HybridTaskProvider>(
+        builder: (context, categoryProvider, taskProvider, child) {
           if (categoryProvider.categories.isEmpty) {
             return const Center(
               child: Column(
@@ -61,7 +61,7 @@ class CategoriesScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 ...categoryProvider.defaultCategories.map(
                   (category) => _buildCategoryTile(
-                      context, category, categoryProvider, todoProvider),
+                      context, category, categoryProvider, taskProvider),
                 ),
                 const SizedBox(height: 24),
               ],
@@ -72,7 +72,7 @@ class CategoriesScreen extends StatelessWidget {
                 const SizedBox(height: 8),
                 ...categoryProvider.userCategories.map(
                   (category) => _buildCategoryTile(
-                      context, category, categoryProvider, todoProvider),
+                      context, category, categoryProvider, taskProvider),
                 ),
               ],
 
@@ -107,10 +107,10 @@ class CategoriesScreen extends StatelessWidget {
   Widget _buildCategoryTile(
     BuildContext context,
     Category category,
-    CategoryProvider categoryProvider,
-    TodoProvider todoProvider,
+    HybridCategoryProvider categoryProvider,
+    HybridTaskProvider taskProvider,
   ) {
-    final todosInCategory = todoProvider.getTodosByCategory(category.id);
+    final todosInCategory = taskProvider.getTodosByCategory(category.id);
     final completedCount =
         todosInCategory.where((todo) => todo.isCompleted).length;
 
@@ -148,7 +148,7 @@ class CategoriesScreen extends StatelessWidget {
             value,
             category,
             categoryProvider,
-            todoProvider,
+            taskProvider,
           ),
           itemBuilder: (context) => [
             const PopupMenuItem(
@@ -179,7 +179,7 @@ class CategoriesScreen extends StatelessWidget {
               ),
           ],
         ),
-        onTap: () => _viewCategoryTodos(context, category, todoProvider),
+        onTap: () => _viewCategoryTodos(context, category, taskProvider),
       ),
     );
   }
@@ -188,27 +188,27 @@ class CategoriesScreen extends StatelessWidget {
     BuildContext context,
     String action,
     Category category,
-    CategoryProvider categoryProvider,
-    TodoProvider todoProvider,
+    HybridCategoryProvider categoryProvider,
+    HybridTaskProvider taskProvider,
   ) {
     switch (action) {
       case 'view':
-        _viewCategoryTodos(context, category, todoProvider);
+        _viewCategoryTodos(context, category, taskProvider);
         break;
       case 'edit':
         _showEditCategoryDialog(context, category);
         break;
       case 'delete':
         _showDeleteCategoryDialog(
-            context, category, categoryProvider, todoProvider);
+            context, category, categoryProvider, taskProvider);
         break;
     }
   }
 
-  void _viewCategoryTodos(
-      BuildContext context, Category category, TodoProvider todoProvider) {
+  void _viewCategoryTodos(BuildContext context, Category category,
+      HybridTaskProvider taskProvider) {
     // Set category filter and navigate back to home
-    todoProvider.setCategoryFilter(category.id);
+    taskProvider.setCategoryFilter(category.id);
     Navigator.pop(context);
   }
 
@@ -229,10 +229,10 @@ class CategoriesScreen extends StatelessWidget {
   void _showDeleteCategoryDialog(
     BuildContext context,
     Category category,
-    CategoryProvider categoryProvider,
-    TodoProvider todoProvider,
+    HybridCategoryProvider categoryProvider,
+    HybridTaskProvider taskProvider,
   ) {
-    final todosInCategory = todoProvider.getTodosByCategory(category.id);
+    final todosInCategory = taskProvider.getTodosByCategory(category.id);
 
     showDialog(
       context: context,
@@ -533,14 +533,14 @@ class _AddEditCategoryDialogState extends State<AddEditCategoryDialog> {
 
   void _saveCategory() {
     if (_formKey.currentState!.validate()) {
-      final categoryProvider = context.read<CategoryProvider>();
+      final categoryProvider = context.read<HybridCategoryProvider>();
 
       if (_isEditing) {
         // Update existing category
         final updatedCategory = widget.category!.copyWith(
           name: _nameController.text.trim(),
           description: _descriptionController.text.trim(),
-          colorValue: _selectedColor.value,
+          colorValue: _selectedColor.toARGB32(),
           iconData: _selectedIcon,
         );
         categoryProvider.updateCategory(updatedCategory);

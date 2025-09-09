@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/settings_provider.dart';
-import '../providers/todo_provider.dart';
-import '../providers/category_provider.dart';
+import '../providers/hybrid_task_provider.dart';
+import '../providers/hybrid_category_provider.dart';
 import '../services/backup_service.dart';
+import '../models/app_settings.dart';
+import '../models/task.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -77,8 +79,7 @@ class SettingsScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.palette),
             title: const Text('Theme'),
-            subtitle:
-                Text(_getThemeModeText(settingsProvider.settings.themeMode)),
+            subtitle: Text(_getThemeModeText(settingsProvider.themeMode)),
             trailing: const Icon(Icons.arrow_forward_ios),
             onTap: () => _showThemeDialog(context, settingsProvider),
           ),
@@ -104,19 +105,18 @@ class SettingsScreen extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.flag),
             title: const Text('Default Priority'),
-            subtitle: Text(
-                _getPriorityText(settingsProvider.settings.defaultPriority)),
+            subtitle: Text(_getPriorityText(settingsProvider.defaultPriority)),
             trailing: const Icon(Icons.arrow_forward_ios),
             onTap: () => _showPriorityDialog(context, settingsProvider),
           ),
-          Consumer<CategoryProvider>(
+          Consumer<HybridCategoryProvider>(
             builder: (context, categoryProvider, child) {
               return ListTile(
                 leading: const Icon(Icons.category),
                 title: const Text('Default Category'),
                 subtitle: Text(_getDefaultCategoryText(
                   categoryProvider,
-                  settingsProvider.settings.defaultCategoryId,
+                  settingsProvider.defaultCategoryId ?? '',
                 )),
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () => _showDefaultCategoryDialog(
@@ -141,7 +141,7 @@ class SettingsScreen extends StatelessWidget {
             secondary: const Icon(Icons.notifications),
             title: const Text('Enable Notifications'),
             subtitle: const Text('Receive reminders for due todos'),
-            value: settingsProvider.settings.notificationsEnabled,
+            value: settingsProvider.notificationsEnabled,
             onChanged: (value) =>
                 settingsProvider.setNotificationsEnabled(value),
           ),
@@ -149,7 +149,7 @@ class SettingsScreen extends StatelessWidget {
             leading: const Icon(Icons.schedule),
             title: const Text('Default Reminder Time'),
             subtitle: Text(
-                '${settingsProvider.settings.reminderMinutesBefore} minutes before due'),
+                '${settingsProvider.reminderMinutesBefore} minutes before due'),
             trailing: const Icon(Icons.arrow_forward_ios),
             onTap: () => _showReminderTimeDialog(context, settingsProvider),
           ),
@@ -167,35 +167,35 @@ class SettingsScreen extends StatelessWidget {
             secondary: const Icon(Icons.visibility),
             title: const Text('Show Completed Todos'),
             subtitle: const Text('Display completed todos in lists'),
-            value: settingsProvider.settings.showCompletedTodos,
+            value: settingsProvider.showCompletedTasks,
             onChanged: (value) => settingsProvider.setShowCompletedTodos(value),
           ),
           SwitchListTile(
             secondary: const Icon(Icons.group_work),
             title: const Text('Group by Category'),
             subtitle: const Text('Group todos by their categories'),
-            value: settingsProvider.settings.groupByCategory,
+            value: settingsProvider.groupByCategory,
             onChanged: (value) => settingsProvider.setGroupByCategory(value),
           ),
           SwitchListTile(
             secondary: const Icon(Icons.warning),
             title: const Text('Confirm Before Delete'),
             subtitle: const Text('Ask for confirmation before deleting'),
-            value: settingsProvider.settings.confirmBeforeDelete,
+            value: settingsProvider.confirmBeforeDelete,
             onChanged: (value) =>
                 settingsProvider.setConfirmBeforeDelete(value),
           ),
           ListTile(
             leading: const Icon(Icons.date_range),
             title: const Text('Date Format'),
-            subtitle: Text(settingsProvider.settings.dateFormat),
+            subtitle: Text(settingsProvider.dateFormat),
             trailing: const Icon(Icons.arrow_forward_ios),
             onTap: () => _showDateFormatDialog(context, settingsProvider),
           ),
           ListTile(
             leading: const Icon(Icons.access_time),
             title: const Text('Time Format'),
-            subtitle: Text(settingsProvider.settings.timeFormat),
+            subtitle: Text(settingsProvider.timeFormat),
             trailing: const Icon(Icons.arrow_forward_ios),
             onTap: () => _showTimeFormatDialog(context, settingsProvider),
           ),
@@ -213,7 +213,7 @@ class SettingsScreen extends StatelessWidget {
             secondary: const Icon(Icons.backup),
             title: const Text('Auto Backup'),
             subtitle: const Text('Automatically backup data'),
-            value: settingsProvider.settings.autoBackup,
+            value: settingsProvider.autoBackup,
             onChanged: (value) => settingsProvider.setAutoBackup(value),
           ),
           ListTile(
@@ -273,15 +273,25 @@ class SettingsScreen extends StatelessWidget {
   }
 
   // Helper methods for text display
-  String _getThemeModeText(String themeMode) {
+  String _getThemeModeText(ThemeMode themeMode) {
     switch (themeMode) {
-      case 'light':
+      case ThemeMode.light:
         return 'Light';
-      case 'dark':
+      case ThemeMode.dark:
         return 'Dark';
-      case 'system':
-      default:
+      case ThemeMode.system:
         return 'System';
+    }
+  }
+
+  String _themeModeToString(ThemeMode themeMode) {
+    switch (themeMode) {
+      case ThemeMode.light:
+        return 'light';
+      case ThemeMode.dark:
+        return 'dark';
+      case ThemeMode.system:
+        return 'system';
     }
   }
 
@@ -299,7 +309,7 @@ class SettingsScreen extends StatelessWidget {
   }
 
   String _getDefaultCategoryText(
-      CategoryProvider categoryProvider, String categoryId) {
+      HybridCategoryProvider categoryProvider, String categoryId) {
     if (categoryId.isEmpty) return 'No default category';
     final category = categoryProvider.getCategoryById(categoryId);
     return category?.name ?? 'Unknown category';
@@ -318,7 +328,7 @@ class SettingsScreen extends StatelessWidget {
             RadioListTile<String>(
               title: const Text('Light'),
               value: 'light',
-              groupValue: settingsProvider.settings.themeMode,
+              groupValue: _themeModeToString(settingsProvider.themeMode),
               onChanged: (value) {
                 settingsProvider.setThemeMode(value!);
                 Navigator.pop(context);
@@ -327,7 +337,7 @@ class SettingsScreen extends StatelessWidget {
             RadioListTile<String>(
               title: const Text('Dark'),
               value: 'dark',
-              groupValue: settingsProvider.settings.themeMode,
+              groupValue: _themeModeToString(settingsProvider.themeMode),
               onChanged: (value) {
                 settingsProvider.setThemeMode(value!);
                 Navigator.pop(context);
@@ -336,7 +346,7 @@ class SettingsScreen extends StatelessWidget {
             RadioListTile<String>(
               title: const Text('System'),
               value: 'system',
-              groupValue: settingsProvider.settings.themeMode,
+              groupValue: _themeModeToString(settingsProvider.themeMode),
               onChanged: (value) {
                 settingsProvider.setThemeMode(value!);
                 Navigator.pop(context);
@@ -360,7 +370,7 @@ class SettingsScreen extends StatelessWidget {
             RadioListTile<int>(
               title: const Text('High'),
               value: 1,
-              groupValue: settingsProvider.settings.defaultPriority,
+              groupValue: settingsProvider.defaultPriority,
               onChanged: (value) {
                 settingsProvider.setDefaultPriority(value!);
                 Navigator.pop(context);
@@ -369,7 +379,7 @@ class SettingsScreen extends StatelessWidget {
             RadioListTile<int>(
               title: const Text('Medium'),
               value: 2,
-              groupValue: settingsProvider.settings.defaultPriority,
+              groupValue: settingsProvider.defaultPriority,
               onChanged: (value) {
                 settingsProvider.setDefaultPriority(value!);
                 Navigator.pop(context);
@@ -378,7 +388,7 @@ class SettingsScreen extends StatelessWidget {
             RadioListTile<int>(
               title: const Text('Low'),
               value: 3,
-              groupValue: settingsProvider.settings.defaultPriority,
+              groupValue: settingsProvider.defaultPriority,
               onChanged: (value) {
                 settingsProvider.setDefaultPriority(value!);
                 Navigator.pop(context);
@@ -393,7 +403,7 @@ class SettingsScreen extends StatelessWidget {
   void _showDefaultCategoryDialog(
     BuildContext context,
     SettingsProvider settingsProvider,
-    CategoryProvider categoryProvider,
+    HybridCategoryProvider categoryProvider,
   ) {
     showDialog(
       context: context,
@@ -406,7 +416,7 @@ class SettingsScreen extends StatelessWidget {
               RadioListTile<String>(
                 title: const Text('No default category'),
                 value: '',
-                groupValue: settingsProvider.settings.defaultCategoryId,
+                groupValue: settingsProvider.defaultCategoryId,
                 onChanged: (value) {
                   settingsProvider.setDefaultCategoryId(value!);
                   Navigator.pop(context);
@@ -416,7 +426,7 @@ class SettingsScreen extends StatelessWidget {
                 (category) => RadioListTile<String>(
                   title: Text(category.name),
                   value: category.id,
-                  groupValue: settingsProvider.settings.defaultCategoryId,
+                  groupValue: settingsProvider.defaultCategoryId,
                   onChanged: (value) {
                     settingsProvider.setDefaultCategoryId(value!);
                     Navigator.pop(context);
@@ -433,7 +443,7 @@ class SettingsScreen extends StatelessWidget {
   void _showReminderTimeDialog(
       BuildContext context, SettingsProvider settingsProvider) {
     final controller = TextEditingController(
-      text: settingsProvider.settings.reminderMinutesBefore.toString(),
+      text: settingsProvider.reminderMinutesBefore.toString(),
     );
 
     showDialog(
@@ -485,7 +495,7 @@ class SettingsScreen extends StatelessWidget {
             RadioListTile<String>(
               title: const Text('MM/dd/yyyy'),
               value: 'MM/dd/yyyy',
-              groupValue: settingsProvider.settings.dateFormat,
+              groupValue: settingsProvider.dateFormat,
               onChanged: (value) {
                 settingsProvider.setDateFormat(value!);
                 Navigator.pop(context);
@@ -494,7 +504,7 @@ class SettingsScreen extends StatelessWidget {
             RadioListTile<String>(
               title: const Text('dd/MM/yyyy'),
               value: 'dd/MM/yyyy',
-              groupValue: settingsProvider.settings.dateFormat,
+              groupValue: settingsProvider.dateFormat,
               onChanged: (value) {
                 settingsProvider.setDateFormat(value!);
                 Navigator.pop(context);
@@ -503,7 +513,7 @@ class SettingsScreen extends StatelessWidget {
             RadioListTile<String>(
               title: const Text('yyyy-MM-dd'),
               value: 'yyyy-MM-dd',
-              groupValue: settingsProvider.settings.dateFormat,
+              groupValue: settingsProvider.dateFormat,
               onChanged: (value) {
                 settingsProvider.setDateFormat(value!);
                 Navigator.pop(context);
@@ -527,7 +537,7 @@ class SettingsScreen extends StatelessWidget {
             RadioListTile<String>(
               title: const Text('12-hour (AM/PM)'),
               value: '12h',
-              groupValue: settingsProvider.settings.timeFormat,
+              groupValue: settingsProvider.timeFormat,
               onChanged: (value) {
                 settingsProvider.setTimeFormat(value!);
                 Navigator.pop(context);
@@ -536,7 +546,7 @@ class SettingsScreen extends StatelessWidget {
             RadioListTile<String>(
               title: const Text('24-hour'),
               value: '24h',
-              groupValue: settingsProvider.settings.timeFormat,
+              groupValue: settingsProvider.timeFormat,
               onChanged: (value) {
                 settingsProvider.setTimeFormat(value!);
                 Navigator.pop(context);
@@ -550,19 +560,40 @@ class SettingsScreen extends StatelessWidget {
 
   Future<void> _exportData(BuildContext context) async {
     try {
-      final todoProvider = context.read<TodoProvider>();
-      final categoryProvider = context.read<CategoryProvider>();
+      final taskProvider = context.read<HybridTaskProvider>();
+      final categoryProvider = context.read<HybridCategoryProvider>();
       final settingsProvider = context.read<SettingsProvider>();
 
       // Export functionality is handled by BackupService
 
       // Create an instance of BackupService
       final backupService = BackupService();
+      final settingsObject = AppSettings(
+        themeMode: settingsProvider.themeMode.name,
+        sortOrder: settingsProvider.sortOrder,
+        filterOption: settingsProvider.filterOption,
+        notificationsEnabled: settingsProvider.notificationsEnabled,
+        autoBackup: settingsProvider.autoBackup,
+        defaultPriority: settingsProvider.defaultPriority,
+        showCompletedTodos: settingsProvider.showCompletedTasks,
+        dateFormat: settingsProvider.dateFormat,
+        timeFormat: settingsProvider.timeFormat,
+        confirmBeforeDelete: settingsProvider.confirmBeforeDelete,
+        reminderMinutesBefore: settingsProvider.reminderMinutesBefore,
+        groupByCategory: settingsProvider.groupByCategory,
+        defaultCategoryId: settingsProvider.defaultCategoryId ?? '',
+        defaultView: settingsProvider.defaultView,
+        enableSoundEffects: settingsProvider.enableSoundEffects,
+        languageCode: settingsProvider.languageCode,
+        enableDataSync: settingsProvider.enableDataSync,
+      );
       final backupPath = await backupService.createBackup(
-        tasks: todoProvider.allTodos,
+        tasks: taskProvider.todos
+            .map((todo) => Task.fromJson(todo.toJson()))
+            .toList(),
         notes: [], // Assuming we don't have notes yet
         categories: categoryProvider.categories,
-        settings: settingsProvider.settings,
+        settings: settingsObject,
       );
 
       if (context.mounted) {

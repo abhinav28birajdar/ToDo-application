@@ -1,59 +1,43 @@
-# Pro-Organizer
+# Pro Organizer - Flutter Todo App with Supabase
 
-A secure, personalized to-do and notes Flutter application with Supabase authentication and backend.
+A modern, feature-rich todo application built with Flutter and Supabase, featuring comprehensive authentication, real-time data sync, and a beautiful fuchsia-themed UI.
 
 ## 🚀 Features
 
-### Authentication
-- 🔐 Secure user authentication with Supabase
-- 📝 Account creation and management
-- 🔑 Password reset functionality
+### 🎨 Modern UI/UX
+- **Fuchsia-600 Theme**: Beautiful #C026D3 color scheme throughout the app
+- **Material Design 3**: Latest design system with proper light/dark mode support
+- **Responsive Design**: Works perfectly on all screen sizes
+- **Smooth Animations**: Engaging user interactions with fluid animations
 
-### Task Management
-- ✅ Create, edit, and delete tasks
-- 📅 Set due dates and priorities
-- 🏷️ Organize tasks with categories
-- ✓ Track task completion
-- 🔍 Filter and sort tasks by various criteria
-- 🔄 Recurring task support (daily, weekly, monthly, yearly)
+### 🔐 Comprehensive Authentication
+- **Email/Password**: Traditional authentication method
+- **Google Sign-In**: Quick OAuth integration with Google
+- **Facebook Login**: Social authentication with Facebook
+- **Apple Sign-In**: Native iOS authentication (iOS only)
+- **Magic Links**: Passwordless authentication via email
+- **Password Reset**: Secure password recovery system
 
-### Notes
-- 📝 Create, edit, and delete notes
-- 📄 Rich text formatting
-- ⭐ Favorite important notes
-- 🏷️ Organize with tags
-- 📲 Share notes with other users
+### 📱 Core Functionality
+- **Task Management**: Create, edit, delete, and organize tasks
+- **Categories**: Organize tasks with color-coded categories
+- **Notes**: Rich text notes with full-text search
+- **Priorities**: 5-level priority system (1-5)
+- **Due Dates**: Set and track task deadlines
+- **Notifications**: Smart reminders and alerts
+- **Offline Support**: Works offline with automatic sync
 
-### Notifications & Reminders
-- ⏰ Due date reminders
-- � Recurring notifications
-- � Custom alarms
-- 📲 Notification management
+### ☁️ Cloud Integration
+- **Supabase Backend**: Real-time database and authentication
+- **Cross-Platform Sync**: Data syncs across all devices
+- **Secure Storage**: End-to-end encryption for sensitive data
+- **Automatic Backups**: Regular data backups with restoration
+- **Real-time Updates**: Live collaboration features
 
-### Customization & Settings
-- 🎨 Custom color theme (Dark Olive, Sage Green, Beige/Sand, Off-White)
-- � Dark and light mode support
-- �️ Personalized view options
-- 🌍 Language settings
-- � Data synchronization controls
-- � Backup and restore functionality
-
-### Technical Features
-- 📱 Flutter UI framework
-- 🏗️ Provider for state management
-- ☁️ Supabase for authentication and cloud storage
-- 🗄️ Hive for local offline database
-- 🔔 Local notifications with timezone support
-- 💉 get_it for dependency injection
-- 🌍 Environment variables with .env
-- 🛡️ Error handling and validation
-
-## 📋 Prerequisites
-
-- Flutter SDK (>=3.0.0)
-- Dart SDK
-- Android Studio / VS Code
-- Android SDK or iOS development setup
-
-```
-**Happy Todo Management! 📝✨**
+### ⚙️ Advanced Settings
+- **Theme Customization**: Light, dark, and system themes
+- **Notification Control**: Granular notification settings
+- **Data Management**: Export/import and backup controls
+- **Privacy Options**: Enhanced privacy and security features
+- **Localization**: Multi-language support ready
+Built with ❤️ using Flutter and Supabase

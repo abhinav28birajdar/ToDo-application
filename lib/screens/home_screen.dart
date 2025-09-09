@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 
-import '../providers/todo_provider.dart';
-import '../providers/category_provider.dart';
+import '../providers/hybrid_task_provider.dart';
+import '../providers/hybrid_category_provider.dart';
 import '../providers/settings_provider.dart';
-import '../models/todo.dart';
-import '../widgets/todo_list_tile.dart';
 import '../widgets/search_bar_widget.dart';
 import '../widgets/filter_chip_widget.dart';
 import '../widgets/statistics_card.dart';
@@ -41,8 +38,9 @@ class _HomeScreenState extends State<HomeScreen>
 
   Future<void> _loadInitialData() async {
     try {
-      final todoProvider = Provider.of<TodoProvider>(context, listen: false);
-      await todoProvider.fetchTasks();
+      final taskProvider =
+          Provider.of<HybridTaskProvider>(context, listen: false);
+      await taskProvider.loadTasks();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -122,56 +120,56 @@ class _HomeScreenState extends State<HomeScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: [
-            Consumer<TodoProvider>(
-              builder: (context, todoProvider, child) => Tab(
+            Consumer<HybridTaskProvider>(
+              builder: (context, taskProvider, child) => Tab(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text('All'),
                     Text(
-                      '${todoProvider.totalTodos}',
+                      '${taskProvider.totalTodos}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),
               ),
             ),
-            Consumer<TodoProvider>(
-              builder: (context, todoProvider, child) => Tab(
+            Consumer<HybridTaskProvider>(
+              builder: (context, taskProvider, child) => Tab(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text('Active'),
                     Text(
-                      '${todoProvider.activeTodos}',
+                      '${taskProvider.activeTodos}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),
               ),
             ),
-            Consumer<TodoProvider>(
-              builder: (context, todoProvider, child) => Tab(
+            Consumer<HybridTaskProvider>(
+              builder: (context, taskProvider, child) => Tab(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text('Completed'),
                     Text(
-                      '${todoProvider.completedTodos}',
+                      '${taskProvider.completedTodos}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),
               ),
             ),
-            Consumer<TodoProvider>(
-              builder: (context, todoProvider, child) => Tab(
+            Consumer<HybridTaskProvider>(
+              builder: (context, taskProvider, child) => Tab(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text('Overdue'),
                     Text(
-                      '${todoProvider.overdueTodos}',
+                      '${taskProvider.overdueTodos}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -182,38 +180,39 @@ class _HomeScreenState extends State<HomeScreen>
         ),
       ),
       drawer: _buildDrawer(context),
-      body: Consumer3<TodoProvider, CategoryProvider, SettingsProvider>(
+      body: Consumer3<HybridTaskProvider, HybridCategoryProvider,
+          SettingsProvider>(
         builder:
-            (context, todoProvider, categoryProvider, settingsProvider, child) {
+            (context, taskProvider, categoryProvider, settingsProvider, child) {
           return Column(
             children: [
               // Search and Filter Section
-              if (todoProvider.searchQuery.isNotEmpty ||
-                  todoProvider.filterOption != 'all' ||
-                  todoProvider.selectedCategoryId != null)
+              if (taskProvider.searchQuery.isNotEmpty ||
+                  taskProvider.filterOption != 'all' ||
+                  taskProvider.selectedCategoryId != null)
                 Container(
                   padding: const EdgeInsets.all(8.0),
                   child: Wrap(
                     spacing: 8.0,
                     children: [
-                      if (todoProvider.searchQuery.isNotEmpty)
+                      if (taskProvider.searchQuery.isNotEmpty)
                         FilterChipWidget(
-                          label: 'Search: ${todoProvider.searchQuery}',
-                          onDeleted: () => todoProvider.setSearchQuery(''),
+                          label: 'Search: ${taskProvider.searchQuery}',
+                          onDeleted: () => taskProvider.setSearchQuery(''),
                         ),
-                      if (todoProvider.filterOption != 'all')
+                      if (taskProvider.filterOption != 'all')
                         FilterChipWidget(
-                          label: 'Filter: ${todoProvider.filterOption}',
-                          onDeleted: () => todoProvider.setFilterOption('all'),
+                          label: 'Filter: ${taskProvider.filterOption}',
+                          onDeleted: () => taskProvider.setFilterOption('all'),
                         ),
-                      if (todoProvider.selectedCategoryId != null)
+                      if (taskProvider.selectedCategoryId != null)
                         FilterChipWidget(
                           label:
-                              'Category: ${_getCategoryName(categoryProvider, todoProvider.selectedCategoryId!)}',
-                          onDeleted: () => todoProvider.setCategoryFilter(null),
+                              'Category: ${_getCategoryName(categoryProvider, taskProvider.selectedCategoryId!)}',
+                          onDeleted: () => taskProvider.setCategoryFilter(null),
                         ),
                       TextButton(
-                        onPressed: () => todoProvider.clearFilters(),
+                        onPressed: () => taskProvider.clearFilters(),
                         child: const Text('Clear All'),
                       ),
                     ],
@@ -221,7 +220,7 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
 
               // Statistics Cards
-              if (todoProvider.totalTodos > 0)
+              if (taskProvider.totalTodos > 0)
                 Container(
                   height: 120,
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -230,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen>
                       Expanded(
                         child: StatisticsCard(
                           title: 'Total',
-                          value: todoProvider.totalTodos.toString(),
+                          value: taskProvider.totalTodos.toString(),
                           icon: Icons.list,
                           color: Colors.blue,
                         ),
@@ -239,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen>
                       Expanded(
                         child: StatisticsCard(
                           title: 'Completed',
-                          value: todoProvider.completedTodos.toString(),
+                          value: taskProvider.completedTodos.toString(),
                           icon: Icons.check_circle,
                           color: Colors.green,
                         ),
@@ -248,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen>
                       Expanded(
                         child: StatisticsCard(
                           title: 'Overdue',
-                          value: todoProvider.overdueTodos.toString(),
+                          value: taskProvider.overdueTodos.toString(),
                           icon: Icons.warning,
                           color: Colors.red,
                         ),
@@ -257,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen>
                       Expanded(
                         child: StatisticsCard(
                           title: 'Due Today',
-                          value: todoProvider.dueTodayTodos.toString(),
+                          value: taskProvider.todayTodos.toString(),
                           icon: Icons.today,
                           color: Colors.orange,
                         ),
@@ -399,132 +398,8 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildTodoList(TodoProvider todoProvider, String filter) {
-    // Apply the appropriate filter
-    List<Todo> filteredTodos = [];
-    // Convert Task list to Todo list for compatibility
-    switch (filter) {
-      case 'active':
-        final activeTasks =
-            todoProvider.allTodos.where((todo) => !todo.isCompleted).toList();
-        filteredTodos =
-            activeTasks.map((task) => todoProvider.taskToTodo(task)).toList();
-        break;
-      case 'completed':
-        final completedTasks =
-            todoProvider.allTodos.where((todo) => todo.isCompleted).toList();
-        filteredTodos = completedTasks
-            .map((task) => todoProvider.taskToTodo(task))
-            .toList();
-        break;
-      case 'overdue':
-        final overdueTasks =
-            todoProvider.allTodos.where((todo) => todo.isOverdue).toList();
-        filteredTodos =
-            overdueTasks.map((task) => todoProvider.taskToTodo(task)).toList();
-        break;
-      case 'all':
-      default:
-        filteredTodos = todoProvider.todos
-            .map((task) => todoProvider.taskToTodo(task))
-            .toList();
-        break;
-    }
-
-    if (filteredTodos.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              _getEmptyStateIcon(filter),
-              size: 64,
-              color: Colors.grey[400],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _getEmptyStateMessage(filter),
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.grey[600],
-                  ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _getEmptyStateSubtitle(filter),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[500],
-                  ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: () async {
-        // Refresh functionality could be implemented here
-        await Future.delayed(const Duration(milliseconds: 500));
-      },
-      child: ListView.builder(
-        padding: const EdgeInsets.all(8.0),
-        itemCount: filteredTodos.length,
-        itemBuilder: (context, index) {
-          final todo = filteredTodos[index];
-          return TodoListTile(
-            todo: todo,
-            onToggle: () => todoProvider.toggleTodoStatus(todo),
-            onEdit: () => _navigateToEditTodo(context, todo),
-            onDelete: () =>
-                _showDeleteConfirmation(context, todo, todoProvider),
-          );
-        },
-      ),
-    );
-  }
-
-  IconData _getEmptyStateIcon(String filter) {
-    switch (filter) {
-      case 'active':
-        return Icons.assignment_turned_in;
-      case 'completed':
-        return Icons.check_circle_outline;
-      case 'overdue':
-        return Icons.schedule;
-      default:
-        return Icons.list_alt;
-    }
-  }
-
-  String _getEmptyStateMessage(String filter) {
-    switch (filter) {
-      case 'active':
-        return 'No active todos';
-      case 'completed':
-        return 'No completed todos';
-      case 'overdue':
-        return 'No overdue todos';
-      default:
-        return 'No todos yet';
-    }
-  }
-
-  String _getEmptyStateSubtitle(String filter) {
-    switch (filter) {
-      case 'active':
-        return 'All your todos are completed! 🎉';
-      case 'completed':
-        return 'Complete some todos to see them here';
-      case 'overdue':
-        return 'Great! You\'re up to date';
-      default:
-        return 'Add your first todo to get started';
-    }
-  }
-
   String _getCategoryName(
-      CategoryProvider categoryProvider, String categoryId) {
+      HybridCategoryProvider categoryProvider, String categoryId) {
     final category = categoryProvider.getCategoryById(categoryId);
     return category?.name ?? 'Unknown Category';
   }
@@ -562,7 +437,7 @@ class _HomeScreenState extends State<HomeScreen>
         title: const Text('Search Todos'),
         content: SearchBarWidget(
           onSearch: (query) {
-            context.read<TodoProvider>().setSearchQuery(query);
+            context.read<HybridTaskProvider>().setSearchQuery(query);
             Navigator.pop(context);
           },
         ),
@@ -577,7 +452,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _showSortDialog(BuildContext context) {
-    final todoProvider = context.read<TodoProvider>();
+    final taskProvider = context.read<HybridTaskProvider>();
 
     showDialog(
       context: context,
@@ -589,45 +464,45 @@ class _HomeScreenState extends State<HomeScreen>
             RadioListTile<String>(
               title: const Text('Creation Date (Newest)'),
               value: 'creation_date_desc',
-              groupValue: todoProvider.sortOrder,
+              groupValue: taskProvider.sortOrder,
               onChanged: (value) {
-                todoProvider.setSortOrder(value!);
+                taskProvider.setSortOrder(value!);
                 Navigator.pop(context);
               },
             ),
             RadioListTile<String>(
               title: const Text('Creation Date (Oldest)'),
               value: 'creation_date_asc',
-              groupValue: todoProvider.sortOrder,
+              groupValue: taskProvider.sortOrder,
               onChanged: (value) {
-                todoProvider.setSortOrder(value!);
+                taskProvider.setSortOrder(value!);
                 Navigator.pop(context);
               },
             ),
             RadioListTile<String>(
               title: const Text('Due Date (Earliest)'),
               value: 'due_date_asc',
-              groupValue: todoProvider.sortOrder,
+              groupValue: taskProvider.sortOrder,
               onChanged: (value) {
-                todoProvider.setSortOrder(value!);
+                taskProvider.setSortOrder(value!);
                 Navigator.pop(context);
               },
             ),
             RadioListTile<String>(
               title: const Text('Priority'),
               value: 'priority',
-              groupValue: todoProvider.sortOrder,
+              groupValue: taskProvider.sortOrder,
               onChanged: (value) {
-                todoProvider.setSortOrder(value!);
+                taskProvider.setSortOrder(value!);
                 Navigator.pop(context);
               },
             ),
             RadioListTile<String>(
               title: const Text('Title (A-Z)'),
               value: 'title',
-              groupValue: todoProvider.sortOrder,
+              groupValue: taskProvider.sortOrder,
               onChanged: (value) {
-                todoProvider.setSortOrder(value!);
+                taskProvider.setSortOrder(value!);
                 Navigator.pop(context);
               },
             ),
@@ -644,8 +519,8 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _showFilterDialog(BuildContext context) {
-    final todoProvider = context.read<TodoProvider>();
-    final categoryProvider = context.read<CategoryProvider>();
+    final taskProvider = context.read<HybridTaskProvider>();
+    final categoryProvider = context.read<HybridCategoryProvider>();
 
     showDialog(
       context: context,
@@ -661,26 +536,26 @@ class _HomeScreenState extends State<HomeScreen>
               RadioListTile<String>(
                 title: const Text('All'),
                 value: 'all',
-                groupValue: todoProvider.filterOption,
-                onChanged: (value) => todoProvider.setFilterOption(value!),
+                groupValue: taskProvider.filterOption,
+                onChanged: (value) => taskProvider.setFilterOption(value!),
               ),
               RadioListTile<String>(
                 title: const Text('Active'),
                 value: 'active',
-                groupValue: todoProvider.filterOption,
-                onChanged: (value) => todoProvider.setFilterOption(value!),
+                groupValue: taskProvider.filterOption,
+                onChanged: (value) => taskProvider.setFilterOption(value!),
               ),
               RadioListTile<String>(
                 title: const Text('Completed'),
                 value: 'completed',
-                groupValue: todoProvider.filterOption,
-                onChanged: (value) => todoProvider.setFilterOption(value!),
+                groupValue: taskProvider.filterOption,
+                onChanged: (value) => taskProvider.setFilterOption(value!),
               ),
               RadioListTile<String>(
                 title: const Text('Overdue'),
                 value: 'overdue',
-                groupValue: todoProvider.filterOption,
-                onChanged: (value) => todoProvider.setFilterOption(value!),
+                groupValue: taskProvider.filterOption,
+                onChanged: (value) => taskProvider.setFilterOption(value!),
               ),
               const SizedBox(height: 16),
               const Text('Category:',
@@ -688,15 +563,15 @@ class _HomeScreenState extends State<HomeScreen>
               RadioListTile<String?>(
                 title: const Text('All Categories'),
                 value: null,
-                groupValue: todoProvider.selectedCategoryId,
-                onChanged: (value) => todoProvider.setCategoryFilter(value),
+                groupValue: taskProvider.selectedCategoryId,
+                onChanged: (value) => taskProvider.setCategoryFilter(value),
               ),
               ...categoryProvider.categories.map(
                 (category) => RadioListTile<String?>(
                   title: Text(category.name),
                   value: category.id,
-                  groupValue: todoProvider.selectedCategoryId,
-                  onChanged: (value) => todoProvider.setCategoryFilter(value),
+                  groupValue: taskProvider.selectedCategoryId,
+                  onChanged: (value) => taskProvider.setCategoryFilter(value),
                 ),
               ),
             ],
@@ -713,7 +588,7 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _showStatsDialog(BuildContext context) {
-    final todoProvider = context.read<TodoProvider>();
+    final taskProvider = context.read<HybridTaskProvider>();
 
     showDialog(
       context: context,
@@ -722,16 +597,16 @@ class _HomeScreenState extends State<HomeScreen>
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildStatRow('Total Todos:', todoProvider.totalTodos.toString()),
-            _buildStatRow('Completed:', todoProvider.completedTodos.toString()),
-            _buildStatRow('Active:', todoProvider.activeTodos.toString()),
-            _buildStatRow('Overdue:', todoProvider.overdueTodos.toString()),
-            _buildStatRow('Due Today:', todoProvider.dueTodayTodos.toString()),
+            _buildStatRow('Total Todos:', taskProvider.totalTodos.toString()),
+            _buildStatRow('Completed:', taskProvider.completedTodos.toString()),
+            _buildStatRow('Active:', taskProvider.activeTodos.toString()),
+            _buildStatRow('Overdue:', taskProvider.overdueTodos.toString()),
+            _buildStatRow('Due Today:', taskProvider.todayTodos.toString()),
             const Divider(),
             _buildStatRow(
               'Completion Rate:',
-              todoProvider.totalTodos > 0
-                  ? '${((todoProvider.completedTodos / todoProvider.totalTodos) * 100).toStringAsFixed(1)}%'
+              taskProvider.totalTodos > 0
+                  ? '${((taskProvider.completedTodos / taskProvider.totalTodos) * 100).toStringAsFixed(1)}%'
                   : '0%',
             ),
           ],
@@ -810,48 +685,4 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  void _navigateToEditTodo(BuildContext context, Todo todo) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => AddEditTodoScreen(todo: todo),
-      ),
-    );
-  }
-
-  void _showDeleteConfirmation(
-      BuildContext context, Todo todo, TodoProvider todoProvider) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Todo?'),
-        content: Text('Are you sure you want to delete "${todo.title}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              todoProvider.deleteTodo(todo.id);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('"${todo.title}" deleted'),
-                  action: SnackBarAction(
-                    label: 'Undo',
-                    onPressed: () {
-                      // TODO: Implement undo functionality
-                    },
-                  ),
-                ),
-              );
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
 }

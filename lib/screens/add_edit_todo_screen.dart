@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
-import '../providers/todo_provider.dart';
-import '../providers/category_provider.dart';
+import '../providers/hybrid_task_provider.dart';
+import '../providers/hybrid_category_provider.dart';
 import '../providers/settings_provider.dart';
 import '../models/todo.dart';
-import '../models/category.dart';
 
 class AddEditTodoScreen extends StatefulWidget {
   final Todo? todo; // Optional todo to edit
@@ -65,11 +64,12 @@ class _AddEditTodoScreenState extends State<AddEditTodoScreen> {
       _notificationTime = todo.notificationTime;
     } else {
       // Set defaults from settings
-      final settings = context.read<SettingsProvider>().settings;
-      _selectedPriority = settings.defaultPriority;
-      _selectedCategoryId = settings.defaultCategoryId.isNotEmpty
-          ? settings.defaultCategoryId
-          : null;
+      final settingsProvider = context.read<SettingsProvider>();
+      _selectedPriority = settingsProvider.defaultPriority;
+      _selectedCategoryId =
+          settingsProvider.defaultCategoryId?.isNotEmpty == true
+              ? settingsProvider.defaultCategoryId
+              : null;
     }
   }
 
@@ -252,7 +252,7 @@ class _AddEditTodoScreenState extends State<AddEditTodoScreen> {
   }
 
   Widget _buildCategorySection() {
-    return Consumer<CategoryProvider>(
+    return Consumer<HybridCategoryProvider>(
       builder: (context, categoryProvider, child) {
         return Card(
           child: Padding(
@@ -618,8 +618,8 @@ class _AddEditTodoScreenState extends State<AddEditTodoScreen> {
   void _setDefaultNotificationTime() {
     if (_selectedDueDate == null) return;
 
-    final settings = context.read<SettingsProvider>().settings;
-    final minutesBefore = settings.reminderMinutesBefore;
+    final settingsProvider = context.read<SettingsProvider>();
+    final minutesBefore = settingsProvider.reminderMinutesBefore;
 
     setState(() {
       _notificationTime =
@@ -652,7 +652,7 @@ class _AddEditTodoScreenState extends State<AddEditTodoScreen> {
 
   void _saveTodo() {
     if (_formKey.currentState!.validate()) {
-      final todoProvider = context.read<TodoProvider>();
+      final taskProvider = context.read<HybridTaskProvider>();
 
       if (_isEditing) {
         // Update existing todo
@@ -667,7 +667,7 @@ class _AddEditTodoScreenState extends State<AddEditTodoScreen> {
           notificationTime: _notificationTime,
           notes: _notesController.text.trim(),
         );
-        todoProvider.updateTodo(updatedTodo);
+        taskProvider.updateTodo(updatedTodo);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Todo updated successfully!')),
         );
@@ -687,7 +687,7 @@ class _AddEditTodoScreenState extends State<AddEditTodoScreen> {
           notificationTime: _notificationTime,
           notes: _notesController.text.trim(),
         );
-        todoProvider.addTodo(newTodo);
+        taskProvider.addTodo(newTodo);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Todo added successfully!')),
         );

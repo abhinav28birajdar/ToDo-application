@@ -36,5 +36,7 @@ Future<void> setupServiceLocator() async {
 
   serviceLocator.registerFactory<CategoryProvider>(() => CategoryProvider());
 
-  serviceLocator.registerFactory<SettingsProvider>(() => SettingsProvider());
+  serviceLocator.registerFactory<SettingsProvider>(() => SettingsProvider(
+        serviceLocator<SharedPreferences>(),
+      ));
 }

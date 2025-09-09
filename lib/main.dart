@@ -1,103 +1,111 @@
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart' as path_provider;
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import 'providers/todo_provider.dart';
-import 'providers/category_provider.dart';
+import 'config/supabase_config.dart';
+import 'models/category.dart';
+import 'models/todo.dart';
+import 'models/icon_data_adapter.dart';
+import 'providers/hybrid_task_provider.dart';
+import 'providers/hybrid_category_provider.dart';
+import 'providers/note_provider.dart';
 import 'providers/settings_provider.dart';
-import 'services/notification_service.dart';
-import 'services/backup_service.dart';
-import 'services/supabase/supabase_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/auth_screen.dart';
-import 'models/todo.dart';
-import 'models/category.dart';
-import 'models/app_settings.dart';
-import 'utils/service_locator.dart';
+import 'services/supabase_service.dart';
+import 'services/notification_service.dart';
 import 'utils/app_theme.dart';
-import 'utils/auth_handler.dart';
 
 void main() async {
-  // Ensure that Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    // Load environment variables from .env file
+    // Load environment variables
     await dotenv.load(fileName: ".env");
 
-    // Initialize service locator
-    await setupServiceLocator();
-
-    // Initialize Supabase
-    await SupabaseService.initialize();
-
-    // Get the application document directory for Hive storage
-    final appDocumentDir =
-        await path_provider.getApplicationDocumentsDirectory();
-
-    // Initialize Hive and specify the storage directory
-    await Hive.initFlutter(appDocumentDir.path);
+    // Initialize Hive
+    await Hive.initFlutter();
 
     // Register Hive adapters
-    Hive.registerAdapter(TodoAdapter());
-    Hive.registerAdapter(CategoryAdapter());
-    Hive.registerAdapter(AppSettingsAdapter());
+    if (!Hive.isAdapterRegistered(CategoryAdapter().typeId)) {
+      Hive.registerAdapter(CategoryAdapter());
+    }
+    if (!Hive.isAdapterRegistered(TodoAdapter().typeId)) {
+      Hive.registerAdapter(TodoAdapter());
+    }
+    if (!Hive.isAdapterRegistered(IconDataAdapter().typeId)) {
+      Hive.registerAdapter(IconDataAdapter());
+    }
 
-    debugPrint('App initialization completed successfully');
+    // Initialize SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+
+    // Initialize Supabase
+    await SupabaseService.initialize(
+      url: SupabaseConfig.supabaseUrl,
+      anonKey: SupabaseConfig.supabaseAnonKey,
+    );
+
+    // Create and initialize providers
+    final categoryProvider = HybridCategoryProvider();
+    final taskProvider = HybridTaskProvider();
+
+    // Initialize providers
+    await categoryProvider.initialize();
+    await taskProvider.initialize();
+
+    runApp(MyApp(
+      prefs: prefs,
+      categoryProvider: categoryProvider,
+      taskProvider: taskProvider,
+    ));
   } catch (e) {
     debugPrint('Error during app initialization: $e');
+    runApp(const ErrorApp());
   }
-
-  // Run the application
-  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final SharedPreferences prefs;
+  final HybridCategoryProvider categoryProvider;
+  final HybridTaskProvider taskProvider;
+
+  const MyApp({
+    super.key,
+    required this.prefs,
+    required this.categoryProvider,
+    required this.taskProvider,
+  });
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        // Register our services as providers
-        ChangeNotifierProvider<SupabaseService>(
-            create: (_) => serviceLocator<SupabaseService>()),
-        Provider<NotificationService>(
-            create: (_) => serviceLocator<NotificationService>()),
-        Provider<BackupService>(
-          create: (_) => BackupService(
-            supabaseService: serviceLocator<SupabaseService>(),
-          ),
-        ),
-
-        // Create state management providers in the correct order (dependencies matter)
-        ChangeNotifierProvider(create: (context) => SettingsProvider()),
-        ChangeNotifierProvider(create: (context) => CategoryProvider()),
-        ChangeNotifierProvider(
-            create: (context) => TodoProvider(
-                  supabaseService: serviceLocator<SupabaseService>(),
-                  notificationService: serviceLocator<NotificationService>(),
-                )),
+        Provider<SupabaseService>(create: (_) => SupabaseService()),
+        Provider<NotificationService>(create: (_) => NotificationService()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider(prefs)),
+        ChangeNotifierProvider.value(value: categoryProvider),
+        ChangeNotifierProvider.value(value: taskProvider),
+        ChangeNotifierProvider(create: (_) => NoteProvider()),
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settingsProvider, child) {
           return MaterialApp(
-            title: dotenv.env['APP_NAME'] ?? 'Pro-Organizer',
+            title: 'Pro Organizer',
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: settingsProvider.themeMode,
+            home: const AuthWrapper(),
             debugShowCheckedModeBanner: false,
-            home: const SplashScreen(),
-            // Error handling and auth session management
             builder: (context, widget) {
               // Handle potential errors in the widget tree
               ErrorWidget.builder = (FlutterErrorDetails errorDetails) {
                 return _buildErrorWidget(errorDetails);
               };
-              // Wrap the app with our auth handler to manage session expiration
-              return AuthHandler(child: widget!);
+              return widget!;
             },
           );
         },
@@ -138,29 +146,6 @@ class MyApp extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 24),
-              if (dotenv.env['DEBUG_MODE']?.toLowerCase() == 'true') ...[
-                ExpansionTile(
-                  title: const Text('Error Details'),
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        errorDetails.exception.toString(),
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ],
           ),
         ),
@@ -169,14 +154,63 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+class ErrorApp extends StatelessWidget {
+  const ErrorApp({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Pro Organizer',
+      theme: AppTheme.lightTheme,
+      home: Scaffold(
+        backgroundColor: Colors.red[50],
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Colors.red,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Initialization Failed',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Failed to initialize the app. Please check your configuration and try again.',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.black87,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class AuthWrapper extends StatefulWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
   bool _isLoading = true;
 
   @override
@@ -186,40 +220,52 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkAuthState() async {
-    // Simulate a bit of loading time to show the splash screen
-    await Future.delayed(const Duration(seconds: 2));
+    // Show splash screen for a brief moment
+    await Future.delayed(const Duration(milliseconds: 1500));
 
     try {
-      final supabaseService =
-          Provider.of<SupabaseService>(context, listen: false);
-      final user = supabaseService.currentUser;
-
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
-
-        // Navigate based on auth state
-        if (user != null) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          );
-        } else {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const AuthScreen()),
-          );
-        }
       }
     } catch (e) {
       debugPrint('Auth check error: $e');
-      // Show error UI or fallback to auth screen
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const AuthScreen()),
-        );
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
   }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const SplashScreen();
+    }
+
+    return StreamBuilder<AuthState>(
+      stream: Supabase.instance.client.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const SplashScreen();
+        }
+
+        final session = snapshot.data?.session;
+
+        if (session != null) {
+          return const HomeScreen();
+        } else {
+          return const AuthScreen();
+        }
+      },
+    );
+  }
+}
+
+class SplashScreen extends StatelessWidget {
+  const SplashScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -232,16 +278,16 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // App logo/icon
-            Icon(
-              Icons.check_circle_outline,
-              size: 100,
-              color: theme.colorScheme.primary,
+            Image.asset(
+              'web/icons/Icon-512.png',
+              width: 100,
+              height: 100,
             ),
             const SizedBox(height: 24),
 
             // App name
             Text(
-              'Pro-Organizer',
+              'Pro Organizer',
               style: theme.textTheme.headlineLarge?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.primary,
@@ -250,7 +296,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
             const SizedBox(height: 8),
             Text(
-              'Your Secure Task & Note Manager',
+              'Your Ultimate Task & Note Manager',
               style: theme.textTheme.bodyLarge?.copyWith(
                 color: theme.colorScheme.onBackground.withOpacity(0.7),
               ),
@@ -259,10 +305,10 @@ class _SplashScreenState extends State<SplashScreen> {
             const SizedBox(height: 48),
 
             // Loading indicator
-            if (_isLoading)
-              CircularProgressIndicator(
-                color: theme.colorScheme.primary,
-              ),
+            CircularProgressIndicator(
+              color: theme.colorScheme.primary,
+              strokeWidth: 3,
+            ),
           ],
         ),
       ),

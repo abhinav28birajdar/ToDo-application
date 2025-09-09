@@ -56,6 +56,15 @@ dependencies:
   
   # For image picking
   image_picker: ^1.0.7
+  
+  # For Google Sign In
+  google_sign_in: ^6.2.1
+  
+  # For Facebook Sign In (optional)
+  flutter_facebook_auth: ^6.0.4
+  
+  # For sign in with Apple (iOS) - Temporarily disabled due to Android build issues
+  # sign_in_with_apple: ^5.0.0
 
   cupertino_icons: ^1.0.8
 
@@ -80,3 +89,5 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - .env
+    - web/favicon.png
+    - web/icons/
