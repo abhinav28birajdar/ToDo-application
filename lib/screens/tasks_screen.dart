@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/todo.dart';
-import '../providers/task_provider.dart';
-import '../providers/category_provider.dart';
-
+import '../providers/hybrid_task_provider.dart';
+import '../providers/hybrid_category_provider.dart';
 import '../widgets/todo_list_tile.dart';
 import 'add_edit_todo_screen.dart';
 
 class TasksScreen extends StatefulWidget {
-  const TasksScreen({Key? key}) : super(key: key);
+  final String? filterType; // 'all', 'active', 'completed', 'overdue'
+
+  const TasksScreen({Key? key, this.filterType}) : super(key: key);
 
   @override
   _TasksScreenState createState() => _TasksScreenState();
@@ -26,6 +27,10 @@ class _TasksScreenState extends State<TasksScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshTasks();
+      // Set initial filter if provided
+      if (widget.filterType != null) {
+        context.read<HybridTaskProvider>().setFilterOption(widget.filterType!);
+      }
     });
   }
 
@@ -37,7 +42,18 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Future<void> _refreshTasks() async {
-    await Provider.of<TaskProvider>(context, listen: false).loadTasks();
+    try {
+      await context.read<HybridTaskProvider>().loadTasks();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading tasks: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   void _toggleSearch() {
@@ -46,9 +62,7 @@ class _TasksScreenState extends State<TasksScreen> {
       if (!_isSearchVisible) {
         _searchQuery = '';
         _searchController.clear();
-        Provider.of<TaskProvider>(context, listen: false).setSearchQuery('');
-      } else {
-        FocusScope.of(context).requestFocus(FocusNode());
+        context.read<HybridTaskProvider>().setSearchQuery('');
       }
     });
   }
@@ -57,7 +71,7 @@ class _TasksScreenState extends State<TasksScreen> {
     setState(() {
       _searchQuery = query;
     });
-    Provider.of<TaskProvider>(context, listen: false).setSearchQuery(query);
+    context.read<HybridTaskProvider>().setSearchQuery(query);
   }
 
   void _clearSearch() {
@@ -65,14 +79,13 @@ class _TasksScreenState extends State<TasksScreen> {
       _searchQuery = '';
       _searchController.clear();
     });
-    Provider.of<TaskProvider>(context, listen: false).setSearchQuery('');
+    context.read<HybridTaskProvider>().setSearchQuery('');
   }
 
   void _navigateToAddTaskScreen() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) =>
-            const AddEditTodoScreen(), // No todo means adding new
+        builder: (context) => const AddEditTodoScreen(),
       ),
     );
   }
@@ -85,80 +98,141 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
+  Widget _buildQuickStats() {
+    return Consumer<HybridTaskProvider>(
+      builder: (context, taskProvider, child) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  'Total',
+                  '${taskProvider.totalTodos}',
+                  Icons.list_alt,
+                  Colors.blue,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _buildStatCard(
+                  'Active',
+                  '${taskProvider.activeTodos}',
+                  Icons.pending_actions,
+                  Colors.orange,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _buildStatCard(
+                  'Done',
+                  '${taskProvider.completedTodos}',
+                  Icons.check_circle,
+                  Colors.green,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: _buildStatCard(
+                  'Overdue',
+                  '${taskProvider.overdueTodos}',
+                  Icons.warning,
+                  Colors.red,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 10,
+              color: color.withOpacity(0.8),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildFilterChips() {
-    return Consumer<TaskProvider>(
+    return Consumer<HybridTaskProvider>(
       builder: (context, taskProvider, child) {
         final selectedFilter = taskProvider.filterOption;
 
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        return Container(
+          height: 40,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
             child: Row(
               children: [
-                FilterChip(
-                  label: Text('All (${taskProvider.totalTodos})'),
-                  selected: selectedFilter == 'all',
-                  onSelected: (_) => taskProvider.setFilterOption('all'),
-                  backgroundColor: Theme.of(context).colorScheme.surface,
-                  selectedColor: Theme.of(context).colorScheme.primary,
-                  labelStyle: TextStyle(
-                    color: selectedFilter == 'all'
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : Theme.of(context).colorScheme.onSurface,
-                  ),
+                _buildFilterChip(
+                  'All (${taskProvider.totalTodos})',
+                  'all',
+                  selectedFilter,
+                  taskProvider,
+                  Colors.grey,
                 ),
-                const SizedBox(width: 8),
-                FilterChip(
-                  label: Text('Active (${taskProvider.activeTodos})'),
-                  selected: selectedFilter == 'active',
-                  onSelected: (_) => taskProvider.setFilterOption('active'),
-                  backgroundColor: Theme.of(context).colorScheme.surface,
-                  selectedColor: Theme.of(context).colorScheme.primary,
-                  labelStyle: TextStyle(
-                    color: selectedFilter == 'active'
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : Theme.of(context).colorScheme.onSurface,
-                  ),
+                const SizedBox(width: 6),
+                _buildFilterChip(
+                  'Active (${taskProvider.activeTodos})',
+                  'active',
+                  selectedFilter,
+                  taskProvider,
+                  Colors.blue,
                 ),
-                const SizedBox(width: 8),
-                FilterChip(
-                  label: Text('Completed (${taskProvider.completedTodos})'),
-                  selected: selectedFilter == 'completed',
-                  onSelected: (_) => taskProvider.setFilterOption('completed'),
-                  backgroundColor: Theme.of(context).colorScheme.surface,
-                  selectedColor: Theme.of(context).colorScheme.primary,
-                  labelStyle: TextStyle(
-                    color: selectedFilter == 'completed'
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : Theme.of(context).colorScheme.onSurface,
-                  ),
+                const SizedBox(width: 6),
+                _buildFilterChip(
+                  'Completed (${taskProvider.completedTodos})',
+                  'completed',
+                  selectedFilter,
+                  taskProvider,
+                  Colors.green,
                 ),
-                const SizedBox(width: 8),
-                FilterChip(
-                  label: Text('Overdue (${taskProvider.overdueTodos})'),
-                  selected: selectedFilter == 'overdue',
-                  onSelected: (_) => taskProvider.setFilterOption('overdue'),
-                  backgroundColor: Theme.of(context).colorScheme.surface,
-                  selectedColor: Theme.of(context).colorScheme.primary,
-                  labelStyle: TextStyle(
-                    color: selectedFilter == 'overdue'
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : Theme.of(context).colorScheme.onSurface,
-                  ),
+                const SizedBox(width: 6),
+                _buildFilterChip(
+                  'Overdue (${taskProvider.overdueTodos})',
+                  'overdue',
+                  selectedFilter,
+                  taskProvider,
+                  Colors.red,
                 ),
-                const SizedBox(width: 8),
-                FilterChip(
-                  label: Text('Today (${taskProvider.dueTodayTodos})'),
-                  selected: selectedFilter == 'today',
-                  onSelected: (_) => taskProvider.setFilterOption('today'),
-                  backgroundColor: Theme.of(context).colorScheme.surface,
-                  selectedColor: Theme.of(context).colorScheme.primary,
-                  labelStyle: TextStyle(
-                    color: selectedFilter == 'today'
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : Theme.of(context).colorScheme.onSurface,
-                  ),
+                const SizedBox(width: 6),
+                _buildFilterChip(
+                  'Today (${taskProvider.todayTodos})',
+                  'today',
+                  selectedFilter,
+                  taskProvider,
+                  Colors.orange,
                 ),
               ],
             ),
@@ -168,8 +242,36 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
+  Widget _buildFilterChip(
+    String label,
+    String value,
+    String selectedFilter,
+    HybridTaskProvider taskProvider,
+    Color color,
+  ) {
+    final isSelected = selectedFilter == value;
+    return FilterChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? Colors.white : color,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          fontSize: 12,
+        ),
+      ),
+      selected: isSelected,
+      onSelected: (_) => taskProvider.setFilterOption(value),
+      backgroundColor: color.withOpacity(0.1),
+      selectedColor: color,
+      checkmarkColor: Colors.white,
+      side: BorderSide(color: color.withOpacity(0.3)),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
   Widget _buildCategoryFilterChips() {
-    return Consumer2<TaskProvider, CategoryProvider>(
+    return Consumer2<HybridTaskProvider, HybridCategoryProvider>(
       builder: (context, taskProvider, categoryProvider, child) {
         final selectedCategoryId = taskProvider.selectedCategoryId;
         final categories = categoryProvider.categories;
@@ -178,33 +280,47 @@ class _TasksScreenState extends State<TasksScreen> {
           return const SizedBox.shrink();
         }
 
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        return Container(
+          height: 40,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12.0),
             child: Row(
               children: [
+                FilterChip(
+                  label: const Text('All Categories',
+                      style: TextStyle(fontSize: 12)),
+                  selected: selectedCategoryId == null,
+                  onSelected: (_) => taskProvider.setCategoryFilter(null),
+                  backgroundColor: Theme.of(context).colorScheme.surface,
+                  selectedColor: Theme.of(context).colorScheme.primary,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                ),
+                const SizedBox(width: 6),
                 ...categories.map((category) {
+                  final isSelected = category.id == selectedCategoryId;
                   return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
+                    padding: const EdgeInsets.only(right: 6.0),
                     child: FilterChip(
-                      label: Text(category.name),
-                      selected: category.id == selectedCategoryId,
+                      label: Text(
+                        category.name,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : null,
+                          fontSize: 12,
+                        ),
+                      ),
+                      selected: isSelected,
                       onSelected: (_) {
-                        if (category.id == selectedCategoryId) {
-                          taskProvider.setCategoryFilter(null);
-                        } else {
-                          taskProvider.setCategoryFilter(category.id);
-                        }
+                        taskProvider.setCategoryFilter(
+                          isSelected ? null : category.id,
+                        );
                       },
-                      backgroundColor: Theme.of(context).colorScheme.surface,
+                      backgroundColor: category.color.withOpacity(0.1),
                       selectedColor: category.color,
                       checkmarkColor: Colors.white,
-                      labelStyle: TextStyle(
-                        color: category.id == selectedCategoryId
-                            ? Colors.white
-                            : Theme.of(context).colorScheme.onSurface,
-                      ),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
                     ),
                   );
                 }).toList(),
@@ -216,127 +332,174 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  Widget _buildSortMenu() {
-    return Consumer<TaskProvider>(
+  Widget _buildTaskList() {
+    return Consumer<HybridTaskProvider>(
       builder: (context, taskProvider, child) {
-        return PopupMenuButton<String>(
-          icon: const Icon(Icons.sort),
-          tooltip: 'Sort tasks',
-          onSelected: (value) {
-            taskProvider.setSortOrder(value);
+        final tasks = taskProvider.todos;
+        final isLoading = taskProvider.isLoading;
+
+        if (isLoading) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Loading tasks...'),
+              ],
+            ),
+          );
+        }
+
+        if (tasks.isEmpty) {
+          return _buildEmptyState(taskProvider);
+        }
+
+        return ListView.separated(
+          controller: _scrollController,
+          padding: const EdgeInsets.all(16),
+          itemCount: tasks.length,
+          separatorBuilder: (context, index) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final todo = tasks[index];
+            return Card(
+              elevation: 2,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: TodoListTile(
+                todo: todo,
+                onToggle: () async {
+                  await taskProvider.toggleTodoStatus(todo);
+                },
+                onEdit: () => _navigateToEditTaskScreen(todo),
+                onDelete: () async {
+                  final confirmed = await _showDeleteConfirmation(todo.title);
+                  if (confirmed) {
+                    await taskProvider.deleteTodo(todo.id);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Task deleted successfully'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+            );
           },
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'due_date_asc',
-              child: Text('Due Date (Earliest First)'),
-            ),
-            const PopupMenuItem(
-              value: 'due_date_desc',
-              child: Text('Due Date (Latest First)'),
-            ),
-            const PopupMenuItem(
-              value: 'creation_date_asc',
-              child: Text('Creation Date (Oldest First)'),
-            ),
-            const PopupMenuItem(
-              value: 'creation_date_desc',
-              child: Text('Creation Date (Newest First)'),
-            ),
-            const PopupMenuItem(
-              value: 'priority',
-              child: Text('Priority (High to Low)'),
-            ),
-            const PopupMenuItem(
-              value: 'title',
-              child: Text('Title (A-Z)'),
-            ),
-          ],
         );
       },
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+  Widget _buildEmptyState(HybridTaskProvider taskProvider) {
+    String message;
+    String subtitle;
+    IconData icon;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: _isSearchVisible
-            ? TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search tasks...',
-                  border: InputBorder.none,
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: _clearSearch,
-                  ),
-                ),
-                autofocus: true,
-                onChanged: _onSearchChanged,
-              )
-            : const Text('My Tasks'),
-        actions: [
-          IconButton(
-            icon: Icon(_isSearchVisible ? Icons.search_off : Icons.search),
-            onPressed: _toggleSearch,
+    if (_searchQuery.isNotEmpty) {
+      message = 'No tasks found';
+      subtitle = 'Try adjusting your search terms';
+      icon = Icons.search_off;
+    } else if (taskProvider.filterOption != 'all') {
+      message = 'No ${taskProvider.filterOption} tasks';
+      subtitle = 'Create a new task or change your filter';
+      icon = Icons.filter_list_off;
+    } else {
+      message = 'No tasks yet';
+      subtitle = 'Create your first task to get started';
+      icon = Icons.task_alt;
+    }
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            size: 80,
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
           ),
-          _buildSortMenu(),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (value) {
-              switch (value) {
-                case 'clear_completed':
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Clear Completed Tasks'),
-                      content: const Text(
-                          'Are you sure you want to delete all completed tasks?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                            Provider.of<TaskProvider>(context, listen: false)
-                                .deleteCompletedTasks();
-                          },
-                          child: const Text('Delete'),
-                        ),
-                      ],
-                    ),
-                  );
-                  break;
-                case 'mark_all_completed':
-                  Provider.of<TaskProvider>(context, listen: false)
-                      .markAllAsCompleted();
-                  break;
-                case 'clear_filters':
-                  Provider.of<TaskProvider>(context, listen: false)
-                      .clearFilters();
-                  _clearSearch();
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'clear_completed',
-                child: Text('Clear Completed Tasks'),
+          const SizedBox(height: 24),
+          Text(
+            message,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
+                ),
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton.icon(
+            onPressed: _navigateToAddTaskScreen,
+            icon: const Icon(Icons.add),
+            label: const Text('Add New Task'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _showDeleteConfirmation(String taskTitle) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete Task'),
+            content: Text('Are you sure you want to delete "$taskTitle"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
               ),
-              const PopupMenuItem(
-                value: 'mark_all_completed',
-                child: Text('Mark All as Completed'),
-              ),
-              const PopupMenuItem(
-                value: 'clear_filters',
-                child: Text('Clear All Filters'),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete'),
               ),
             ],
+          ),
+        ) ??
+        false;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0F0F23),
+      appBar: AppBar(
+        title: const Text(
+          'Todo App',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: const Color(0xFF1A1A2E),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search, color: Colors.white),
+            onPressed: _toggleSearch,
+          ),
+          IconButton(
+            icon: const Icon(Icons.more_vert, color: Colors.white),
+            onPressed: () {
+              // TODO: Implement menu functionality
+            },
           ),
         ],
       ),
@@ -344,85 +507,58 @@ class _TasksScreenState extends State<TasksScreen> {
         onRefresh: _refreshTasks,
         child: Column(
           children: [
-            const SizedBox(height: 8),
+            // Quick Stats
+            _buildQuickStats(),
+
+            // Filter Chips
             _buildFilterChips(),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
+
+            // Category Filters
             _buildCategoryFilterChips(),
-            const SizedBox(height: 8),
-            Expanded(
-              child: Consumer<TaskProvider>(
-                builder: (context, taskProvider, child) {
-                  final tasks = taskProvider.todos;
-                  final isLoading = taskProvider.isLoading;
+            const SizedBox(height: 4),
 
-                  if (isLoading) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  if (tasks.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.task_alt,
-                            size: 80,
-                            color: colorScheme.primary.withOpacity(0.5),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _searchQuery.isNotEmpty
-                                ? 'No tasks matching "${_searchQuery}"'
-                                : taskProvider.filterOption != 'all'
-                                    ? 'No ${taskProvider.filterOption} tasks'
-                                    : 'No tasks yet',
-                            style: theme.textTheme.titleLarge,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Add a new task to get started',
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: 24),
-                          ElevatedButton.icon(
-                            onPressed: _navigateToAddTaskScreen,
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add Task'),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.only(bottom: 100),
-                    itemCount: tasks.length,
-                    itemBuilder: (context, index) {
-                      final todo = tasks[index]; // tasks is now List<Todo>
-
-                      return TodoListTile(
-                        todo: todo,
-                        onToggle: () {
-                          taskProvider.toggleTodoStatus(todo);
-                        },
-                        onEdit: () => _navigateToEditTaskScreen(todo),
-                        onDelete: () {
-                          taskProvider.deleteTodo(todo.id);
-                        },
-                      );
-                    },
-                  );
-                },
+            // Search Bar (if visible)
+            if (_isSearchVisible)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search tasks...',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: _clearSearch,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  autofocus: true,
+                  onChanged: _onSearchChanged,
+                ),
               ),
-            ),
+
+            if (_isSearchVisible) const SizedBox(height: 8),
+
+            // Task List
+            Expanded(child: _buildTaskList()),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _navigateToAddTaskScreen,
-        tooltip: 'Add Task',
-        child: const Icon(Icons.add),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton(
+            heroTag: "add",
+            onPressed: _navigateToAddTaskScreen,
+            backgroundColor: const Color(0xFF8B5CF6),
+            child: const Icon(Icons.add, color: Colors.white),
+          ),
+        ],
       ),
     );
   }

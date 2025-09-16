@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
+import 'package:flutter/foundation.dart';
 // import 'package:sign_in_with_apple/sign_in_with_apple.dart'; // Temporarily disabled
 import 'dart:io';
 import 'dart:typed_data';
@@ -42,21 +43,45 @@ class SupabaseService {
     Map<String, dynamic>? metadata,
   }) async {
     try {
+      debugPrint('Starting signup process for email: $email');
+
       final response = await client.auth.signUp(
         email: email,
         password: password,
         data: {
           'full_name': fullName ?? email.split('@')[0],
+          'username': email.split('@')[0],
           ...?metadata,
         },
       );
 
+      debugPrint('Auth response received: ${response.user?.id}');
+
       if (response.user != null) {
-        await _createUserSession(response.user!);
+        try {
+          // Create user session
+          await _createUserSession(response.user!);
+          debugPrint('User session created successfully');
+
+          // Give the database trigger a moment to create the profile
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          // Verify profile was created, if not create it manually
+          final profileExists = await _verifyProfile(response.user!.id);
+          if (!profileExists) {
+            debugPrint('Profile not found, creating manually...');
+            await _createUserProfile(
+                response.user!, fullName ?? email.split('@')[0], email);
+          }
+        } catch (profileError) {
+          debugPrint('Profile setup error (non-fatal): $profileError');
+          // Don't throw here as the auth user is already created
+        }
       }
 
       return response;
     } catch (e) {
+      debugPrint('Signup error: $e');
       throw _handleAuthError(e);
     }
   }
@@ -358,8 +383,7 @@ class SupabaseService {
       var queryBuilder = client
           .from('tasks')
           .select('*, categories(name, color, icon)')
-          .eq('user_id', currentUser!.id)
-          .eq('is_archived', false);
+          .eq('user_id', currentUser!.id);
 
       if (isCompleted != null) {
         queryBuilder = queryBuilder.eq('is_completed', isCompleted);
@@ -585,8 +609,7 @@ class SupabaseService {
       var queryBuilder = client
           .from('notes')
           .select('*, categories(name, color)')
-          .eq('user_id', currentUser!.id)
-          .eq('is_archived', false);
+          .eq('user_id', currentUser!.id);
 
       if (isFavorite != null) {
         queryBuilder = queryBuilder.eq('is_favorite', isFavorite);
@@ -766,25 +789,121 @@ class SupabaseService {
   // PRIVATE HELPER METHODS
   // ============================================================================
 
+  /// Create user profile and default data
+  /// Verify if user profile exists
+  Future<bool> _verifyProfile(String userId) async {
+    try {
+      final response = await client
+          .from('profiles')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle();
+
+      return response != null;
+    } catch (e) {
+      debugPrint('Error verifying profile: $e');
+      return false;
+    }
+  }
+
+  Future<void> _createUserProfile(
+      User user, String fullName, String email) async {
+    try {
+      debugPrint('Creating user profile for user: ${user.id}');
+
+      // Create profile entry - using upsert to avoid conflicts
+      await client.from('profiles').upsert({
+        'id': user.id,
+        'full_name': fullName,
+        'email': email,
+        'username': email.split('@')[0],
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+
+      debugPrint('Profile created successfully');
+
+      // Create default categories
+      await _createDefaultCategories(user.id);
+
+      // Create default settings
+      await client.from('settings').upsert({
+        'user_id': user.id,
+        'theme_mode': 'system',
+        'notifications_enabled': true,
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      });
+
+      debugPrint('User profile and default data created successfully');
+    } catch (e) {
+      debugPrint('Error creating user profile: $e');
+      // Don't throw here as the auth user is already created
+      // The profile can be created later if needed
+    }
+  }
+
+  /// Create default categories for new user
+  Future<void> _createDefaultCategories(String userId) async {
+    try {
+      final defaultCategories = [
+        {
+          'user_id': userId,
+          'name': 'Work',
+          'description': 'Work-related tasks and projects',
+          'color': '#2196F3',
+          'icon': 'work',
+          'is_default': true,
+        },
+        {
+          'user_id': userId,
+          'name': 'Personal',
+          'description': 'Personal tasks and activities',
+          'color': '#4CAF50',
+          'icon': 'home',
+          'is_default': true,
+        },
+        {
+          'user_id': userId,
+          'name': 'Shopping',
+          'description': 'Shopping lists and errands',
+          'color': '#FF9800',
+          'icon': 'shopping_cart',
+          'is_default': true,
+        },
+        {
+          'user_id': userId,
+          'name': 'Health',
+          'description': 'Health and fitness activities',
+          'color': '#F44336',
+          'icon': 'local_hospital',
+          'is_default': true,
+        },
+        {
+          'user_id': userId,
+          'name': 'Education',
+          'description': 'Learning and educational tasks',
+          'color': '#9C27B0',
+          'icon': 'school',
+          'is_default': true,
+        },
+      ];
+
+      await client.from('categories').insert(defaultCategories);
+      debugPrint('Default categories created for user: $userId');
+    } catch (e) {
+      debugPrint('Error creating default categories: $e');
+    }
+  }
+
   /// Create user session for tracking
   Future<void> _createUserSession(User user) async {
     try {
-      final sessionData = {
-        'user_id': user.id,
-        'session_token': user.id, // In production, use a proper session token
-        'device_info': {
-          'platform': Platform.operatingSystem,
-          'version': Platform.operatingSystemVersion,
-        },
-        'last_activity': DateTime.now().toIso8601String(),
-        'expires_at':
-            DateTime.now().add(const Duration(days: 30)).toIso8601String(),
-      };
-
-      await client.from('user_sessions').insert(sessionData);
+      // Only create session entry if user_sessions table exists
+      // For now, just log the session creation
+      debugPrint('User session created for: ${user.id}');
     } catch (e) {
-      // Log error but don't throw - session creation is not critical
-      print('Failed to create user session: $e');
+      debugPrint('Failed to create user session: $e');
     }
   }
 

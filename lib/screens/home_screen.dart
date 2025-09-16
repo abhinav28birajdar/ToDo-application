@@ -269,11 +269,11 @@ class _HomeScreenState extends State<HomeScreen>
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
-                  children: [
-                    const TasksScreen(), // Use our new TasksScreen
-                    const TasksScreen(), // For now, use TasksScreen for all tabs
-                    const TasksScreen(),
-                    const TasksScreen(),
+                  children: const [
+                    TasksScreen(filterType: 'all'),
+                    TasksScreen(filterType: 'active'),
+                    TasksScreen(filterType: 'completed'),
+                    TasksScreen(filterType: 'overdue'),
                   ],
                 ),
               ),
@@ -684,5 +684,4 @@ class _HomeScreenState extends State<HomeScreen>
       ),
     );
   }
-
 }

@@ -9,9 +9,18 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _notifications;
   bool _initialized = false;
 
-  NotificationService({FlutterLocalNotificationsPlugin? notificationsPlugin})
-      : _notifications =
-            notificationsPlugin ?? FlutterLocalNotificationsPlugin();
+  // Static instance for singleton pattern
+  static NotificationService? _instance;
+  static NotificationService get instance =>
+      _instance ??= NotificationService._internal();
+
+  NotificationService._internal()
+      : _notifications = FlutterLocalNotificationsPlugin();
+
+  factory NotificationService(
+      {FlutterLocalNotificationsPlugin? notificationsPlugin}) {
+    return _instance ??= NotificationService._internal();
+  }
 
   // Initialize the notification service
   Future<void> initializeNotifications() async {
@@ -169,14 +178,6 @@ class NotificationService {
     if (!_initialized) await initializeNotifications();
 
     try {
-      final channelId =
-          dotenv.env['NOTIFICATION_CHANNEL_ID'] ?? 'recurring_notifications';
-      final channelName =
-          dotenv.env['NOTIFICATION_CHANNEL_NAME'] ?? 'Recurring Reminders';
-      final channelDescription =
-          dotenv.env['NOTIFICATION_CHANNEL_DESCRIPTION'] ??
-              'Daily and weekly reminder notifications';
-
       const androidDetails = AndroidNotificationDetails(
         'recurring_notifications',
         'Recurring Reminders',
@@ -217,6 +218,192 @@ class NotificationService {
     } catch (e) {
       debugPrint('Error scheduling recurring notification: $e');
     }
+  }
+
+  // Real-time notification for task updates
+  Future<void> showTaskUpdateNotification({
+    required String taskId,
+    required String title,
+    required String action, // 'created', 'updated', 'completed', 'deleted'
+    String? description,
+  }) async {
+    if (!_initialized) await initializeNotifications();
+
+    String notificationTitle;
+    String notificationBody;
+    String emoji;
+
+    switch (action) {
+      case 'created':
+        emoji = '✅';
+        notificationTitle = 'New Task Added';
+        notificationBody = '$emoji $title has been created';
+        break;
+      case 'updated':
+        emoji = '🔄';
+        notificationTitle = 'Task Updated';
+        notificationBody = '$emoji $title has been updated';
+        break;
+      case 'completed':
+        emoji = '🎉';
+        notificationTitle = 'Task Completed!';
+        notificationBody = '$emoji Congratulations! You completed: $title';
+        break;
+      case 'deleted':
+        emoji = '🗑️';
+        notificationTitle = 'Task Deleted';
+        notificationBody = '$emoji $title has been deleted';
+        break;
+      default:
+        emoji = '📝';
+        notificationTitle = 'Task Update';
+        notificationBody = '$emoji $title was $action';
+    }
+
+    if (description != null && description.isNotEmpty) {
+      notificationBody += '\n$description';
+    }
+
+    await showNotification(
+      id: 'task_update_$taskId',
+      title: notificationTitle,
+      body: notificationBody,
+      payload: 'task:$taskId',
+    );
+  }
+
+  // Real-time notification for sync status
+  Future<void> showSyncNotification({
+    required String status, // 'syncing', 'synced', 'error'
+    int? syncedCount,
+    String? errorMessage,
+  }) async {
+    if (!_initialized) await initializeNotifications();
+
+    String title;
+    String body;
+    String emoji;
+
+    switch (status) {
+      case 'syncing':
+        emoji = '🔄';
+        title = 'Syncing Data';
+        body = '$emoji Syncing your tasks with the cloud...';
+        break;
+      case 'synced':
+        emoji = '✅';
+        title = 'Sync Complete';
+        body = syncedCount != null
+            ? '$emoji Successfully synced $syncedCount items'
+            : '$emoji All data is up to date';
+        break;
+      case 'error':
+        emoji = '⚠️';
+        title = 'Sync Error';
+        body = errorMessage != null
+            ? '$emoji $errorMessage'
+            : '$emoji Failed to sync data. Please try again.';
+        break;
+      default:
+        emoji = '📡';
+        title = 'Sync Update';
+        body = '$emoji Sync status: $status';
+    }
+
+    await showNotification(
+      id: 'sync_$status',
+      title: title,
+      body: body,
+      payload: 'sync:$status',
+    );
+  }
+
+  // Real-time notification for overdue tasks
+  Future<void> showOverdueTasksNotification(List<Task> overdueTasks) async {
+    if (!_initialized) await initializeNotifications();
+    if (overdueTasks.isEmpty) return;
+
+    String title;
+    String body;
+
+    if (overdueTasks.length == 1) {
+      title = '⚠️ Overdue Task';
+      body = 'You have an overdue task: ${overdueTasks.first.title}';
+    } else {
+      title = '⚠️ Overdue Tasks';
+      body =
+          'You have ${overdueTasks.length} overdue tasks that need attention';
+    }
+
+    await showNotification(
+      id: 'overdue_tasks',
+      title: title,
+      body: body,
+      payload: 'overdue_tasks',
+    );
+  }
+
+  // Daily summary notification
+  Future<void> showDailySummaryNotification({
+    required int totalTasks,
+    required int completedTasks,
+    required int pendingTasks,
+    required int dueTodayTasks,
+  }) async {
+    if (!_initialized) await initializeNotifications();
+
+    final completionRate =
+        totalTasks > 0 ? (completedTasks / totalTasks * 100).round() : 0;
+
+    String emoji = '📊';
+    if (completionRate >= 80)
+      emoji = '🎉';
+    else if (completionRate >= 60)
+      emoji = '👍';
+    else if (completionRate >= 40) emoji = '📈';
+
+    final title = '$emoji Daily Summary';
+    final body =
+        'Completed: $completedTasks/$totalTasks tasks ($completionRate%)'
+        '${dueTodayTasks > 0 ? '\n📅 $dueTodayTasks tasks due today' : ''}';
+
+    await showNotification(
+      id: 'daily_summary',
+      title: title,
+      body: body,
+      payload: 'daily_summary',
+    );
+  }
+
+  // Weekly achievement notification
+  Future<void> showWeeklyAchievementNotification({
+    required int weeklyCompleted,
+    required int weeklyTarget,
+  }) async {
+    if (!_initialized) await initializeNotifications();
+
+    String title;
+    String body;
+    String emoji;
+
+    if (weeklyCompleted >= weeklyTarget) {
+      emoji = '🏆';
+      title = 'Weekly Goal Achieved!';
+      body =
+          '$emoji Congratulations! You completed $weeklyCompleted tasks this week!';
+    } else {
+      emoji = '💪';
+      title = 'Keep Going!';
+      body =
+          '$emoji You completed $weeklyCompleted/$weeklyTarget tasks this week. Almost there!';
+    }
+
+    await showNotification(
+      id: 'weekly_achievement',
+      title: title,
+      body: body,
+      payload: 'weekly_achievement',
+    );
   }
 
   // Cancel a specific notification
@@ -365,11 +552,7 @@ class NotificationService {
   Future<Map<String, int>> getNotificationStats() async {
     try {
       final pending = await getPendingNotifications();
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final tomorrow = today.add(const Duration(days: 1));
 
-      // This is a simplified implementation
       return {
         'total': pending.length,
         'today':

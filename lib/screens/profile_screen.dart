@@ -229,7 +229,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _saveProfile,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.sageGreen,
+                  backgroundColor: AppTheme.violet500,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
                 child: Text(

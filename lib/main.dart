@@ -43,6 +43,10 @@ void main() async {
     // Initialize SharedPreferences
     final prefs = await SharedPreferences.getInstance();
 
+    // Initialize Notification Service
+    final notificationService = NotificationService.instance;
+    await notificationService.initializeNotifications();
+
     // Initialize Supabase
     await SupabaseService.initialize(
       url: SupabaseConfig.supabaseUrl,
@@ -61,6 +65,7 @@ void main() async {
       prefs: prefs,
       categoryProvider: categoryProvider,
       taskProvider: taskProvider,
+      notificationService: notificationService,
     ));
   } catch (e) {
     debugPrint('Error during app initialization: $e');
@@ -72,12 +77,14 @@ class MyApp extends StatelessWidget {
   final SharedPreferences prefs;
   final HybridCategoryProvider categoryProvider;
   final HybridTaskProvider taskProvider;
+  final NotificationService notificationService;
 
   const MyApp({
     super.key,
     required this.prefs,
     required this.categoryProvider,
     required this.taskProvider,
+    required this.notificationService,
   });
 
   @override
@@ -85,7 +92,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<SupabaseService>(create: (_) => SupabaseService()),
-        Provider<NotificationService>(create: (_) => NotificationService()),
+        Provider<NotificationService>.value(value: notificationService),
         ChangeNotifierProvider(create: (_) => SettingsProvider(prefs)),
         ChangeNotifierProvider.value(value: categoryProvider),
         ChangeNotifierProvider.value(value: taskProvider),
@@ -245,20 +252,34 @@ class _AuthWrapperState extends State<AuthWrapper> {
       return const SplashScreen();
     }
 
-    return StreamBuilder<AuthState>(
-      stream: Supabase.instance.client.auth.onAuthStateChange,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SplashScreen();
-        }
+    return Consumer2<HybridTaskProvider, HybridCategoryProvider>(
+      builder: (context, taskProvider, categoryProvider, child) {
+        return StreamBuilder<AuthState>(
+          stream: Supabase.instance.client.auth.onAuthStateChange,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SplashScreen();
+            }
 
-        final session = snapshot.data?.session;
+            final session = snapshot.data?.session;
 
-        if (session != null) {
-          return const HomeScreen();
-        } else {
-          return const AuthScreen();
-        }
+            if (session != null) {
+              // User is authenticated - enable cloud sync
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                taskProvider.enableCloudSync();
+                categoryProvider.enableCloudSync();
+              });
+              return const HomeScreen();
+            } else {
+              // User is not authenticated - disable cloud sync
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                taskProvider.disableCloudSync();
+                categoryProvider.disableCloudSync();
+              });
+              return const AuthScreen();
+            }
+          },
+        );
       },
     );
   }

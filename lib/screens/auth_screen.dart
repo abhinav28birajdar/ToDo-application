@@ -95,7 +95,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
               const SnackBar(
                 content: Text(
                     'Account created! Please check your email to verify your account.'),
-                backgroundColor: AppTheme.fuchsia600,
+                backgroundColor: AppTheme.violet500,
               ),
             );
           }
@@ -325,32 +325,19 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   Widget _buildHeader(ThemeData theme) {
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppTheme.fuchsia600,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.fuchsia600.withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Image.asset(
-            'web/icons/Icon-512.png',
-            width: 60,
-            height: 60,
-            color: Colors.white,
-          ),
+        // Removed circular container background as requested
+        Image.asset(
+          'web/icons/Icon-512.png',
+          width: 80,
+          height: 80,
+          color: AppTheme.violet500,
         ),
         const SizedBox(height: 24),
         Text(
           'Pro-Organizer',
           style: theme.textTheme.headlineLarge?.copyWith(
             fontWeight: FontWeight.bold,
-            color: AppTheme.fuchsia600,
+            color: AppTheme.violet500,
           ),
         ),
         const SizedBox(height: 8),

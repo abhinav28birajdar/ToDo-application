@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/supabase_service.dart';
+import '../services/notification_service.dart';
 import '../models/todo.dart';
 
 /// Hybrid Task Provider for managing task state with local storage and optional cloud sync
@@ -20,6 +22,9 @@ class HybridTaskProvider extends ChangeNotifier {
 
   // Hive box for local storage
   Box<Todo>? _todoBox;
+
+  // Real-time subscription
+  RealtimeChannel? _taskSubscription;
 
   // Initialize
   Future<void> initialize() async {
@@ -45,6 +50,7 @@ class HybridTaskProvider extends ChangeNotifier {
       // If cloud sync is enabled and user is authenticated, sync with cloud
       if (_cloudSyncEnabled && _supabaseService.isAuthenticated) {
         await _syncWithCloud();
+        _setupRealtimeSubscription();
       }
     } catch (e) {
       _error = 'Failed to initialize: $e';
@@ -52,6 +58,108 @@ class HybridTaskProvider extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  // Setup real-time subscription for tasks
+  void _setupRealtimeSubscription() {
+    if (!_cloudSyncEnabled || !_supabaseService.isAuthenticated) return;
+
+    try {
+      final userId = _supabaseService.userId;
+      if (userId == null) return;
+
+      _taskSubscription = _supabaseService.client
+          .channel('tasks_$userId')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'tasks',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: userId,
+            ),
+            callback: _handleRealtimeEvent,
+          )
+          .subscribe();
+
+      debugPrint('Real-time subscription setup for user: $userId');
+    } catch (e) {
+      debugPrint('Error setting up real-time subscription: $e');
+    }
+  }
+
+  // Handle real-time events
+  void _handleRealtimeEvent(PostgresChangePayload payload) {
+    debugPrint('Real-time event received: ${payload.eventType}');
+
+    try {
+      switch (payload.eventType) {
+        case PostgresChangeEvent.insert:
+          _handleTaskInsert(payload.newRecord);
+          break;
+        case PostgresChangeEvent.update:
+          _handleTaskUpdate(payload.newRecord);
+          break;
+        case PostgresChangeEvent.delete:
+          _handleTaskDelete(payload.oldRecord);
+          break;
+        case PostgresChangeEvent.all:
+          // Handle all events case
+          break;
+      }
+    } catch (e) {
+      debugPrint('Error handling real-time event: $e');
+    }
+  }
+
+  // Handle task insert from real-time
+  void _handleTaskInsert(Map<String, dynamic> record) {
+    try {
+      final todo = Todo.fromJson(record);
+
+      // Check if task already exists
+      final existingIndex = _todos.indexWhere((t) => t.id == todo.id);
+      if (existingIndex == -1) {
+        _todos.add(todo);
+        _saveToLocal(todo);
+        notifyListeners();
+        debugPrint('Real-time: Task inserted - ${todo.title}');
+      }
+    } catch (e) {
+      debugPrint('Error handling task insert: $e');
+    }
+  }
+
+  // Handle task update from real-time
+  void _handleTaskUpdate(Map<String, dynamic> record) {
+    try {
+      final todo = Todo.fromJson(record);
+
+      final existingIndex = _todos.indexWhere((t) => t.id == todo.id);
+      if (existingIndex != -1) {
+        _todos[existingIndex] = todo;
+        _saveToLocal(todo);
+        notifyListeners();
+        debugPrint('Real-time: Task updated - ${todo.title}');
+      }
+    } catch (e) {
+      debugPrint('Error handling task update: $e');
+    }
+  }
+
+  // Handle task delete from real-time
+  void _handleTaskDelete(Map<String, dynamic> record) {
+    try {
+      final taskId = record['id'] as String;
+
+      _todos.removeWhere((todo) => todo.id == taskId);
+      _deleteFromLocal(taskId);
+      notifyListeners();
+      debugPrint('Real-time: Task deleted - $taskId');
+    } catch (e) {
+      debugPrint('Error handling task delete: $e');
     }
   }
 
@@ -365,6 +473,33 @@ class HybridTaskProvider extends ChangeNotifier {
     await updateTodo(updatedTodo);
   }
 
+  // Toggle completion status (alias for compatibility)
+  Future<void> toggleTodoStatus(Todo todo) async {
+    await toggleTodoCompletion(todo.id);
+  }
+
+  // Delete all completed tasks
+  Future<void> deleteCompletedTasks() async {
+    final completedTodos = _todos.where((todo) => todo.isCompleted).toList();
+
+    for (final todo in completedTodos) {
+      await deleteTodo(todo.id);
+    }
+  }
+
+  // Mark all tasks as completed
+  Future<void> markAllAsCompleted() async {
+    final activeTodos = _todos.where((todo) => !todo.isCompleted).toList();
+
+    for (final todo in activeTodos) {
+      final updatedTodo = todo.copyWith(
+        isCompleted: true,
+        completionDate: DateTime.now(),
+      );
+      await updateTodo(updatedTodo);
+    }
+  }
+
   // Search and filter methods
   void setSearchQuery(String query) {
     _searchQuery = query;
@@ -416,7 +551,26 @@ class HybridTaskProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _taskSubscription?.unsubscribe();
     _todoBox?.close();
     super.dispose();
+  }
+
+  // Method to enable cloud sync (called when user logs in)
+  Future<void> enableCloudSync() async {
+    if (!_supabaseService.isAuthenticated) return;
+
+    _cloudSyncEnabled = true;
+    await _syncWithCloud();
+    _setupRealtimeSubscription();
+    notifyListeners();
+  }
+
+  // Method to disable cloud sync (called when user logs out)
+  void disableCloudSync() {
+    _cloudSyncEnabled = false;
+    _taskSubscription?.unsubscribe();
+    _taskSubscription = null;
+    notifyListeners();
   }
 }

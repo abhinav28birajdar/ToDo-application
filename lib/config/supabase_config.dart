@@ -10,15 +10,20 @@
 /// ⚠️ IMPORTANT: Never commit real credentials to version control
 /// Consider using environment variables or a .env file for production
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class SupabaseConfig {
-  // Your actual Supabase project credentials
-  static const String supabaseUrl = 'https://cuksebxpzgagisxlpshs.supabase.co';
-  static const String supabaseAnonKey =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN1a3NlYnhwemdhZ2lzeGxwc2hzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTczNTMxOTEsImV4cCI6MjA3MjkyOTE5MX0.UOmxqRxh_Dtv_PpLGteNTMLJfqWvNOQYOtdf6ejm7Nw';
+  // Your actual Supabase project credentials from environment
+  static String get supabaseUrl =>
+      dotenv.env['SUPABASE_URL'] ?? 'https://sgbrkvaphpimvgeyrxhd.supabase.co';
+  static String get supabaseAnonKey =>
+      dotenv.env['SUPABASE_ANON_KEY'] ??
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnYnJrdmFwaHBpbXZnZXlyeGhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0Mzc3MjksImV4cCI6MjA3MzAxMzcyOX0.RpoxbzINEL66M9NPeVorL0NeLOspRuM-rM-HeARoooA';
 
   // Service role secret (only use server-side, never in client apps)
-  static const String supabaseServiceRoleSecret =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN1a3NlYnhwemdhZ2lzeGxwc2hzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzM1MzE5MSwiZXhwIjoyMDcyOTI5MTkxfQ.nL2ZuJ8pZo2H6Nri_D0ShW7BOA6yonAI5xdkJKJd03U';
+  static String get supabaseServiceRoleSecret =>
+      dotenv.env['SUPABASE_SERVICE_ROLE_SECRET'] ??
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnYnJrdmFwaHBpbXZnZXlyeGhkIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1NzQzNzcyOSwiZXhwIjoyMDczMDEzNzI5fQ.rXSvp3kVR3dDwZ8xMRc3B-MtCerYa_TqTpRN2HL-0_8';
 
   // Optional: Enable debug mode for development
   static const bool debugMode = true;

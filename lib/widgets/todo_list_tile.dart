@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
 import '../models/todo.dart';
-import '../providers/category_provider.dart';
+import '../providers/hybrid_category_provider.dart';
 
 class TodoListTile extends StatelessWidget {
   final Todo todo;
@@ -21,7 +21,7 @@ class TodoListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CategoryProvider>(
+    return Consumer<HybridCategoryProvider>(
       builder: (context, categoryProvider, child) {
         final category = todo.categoryId != null
             ? categoryProvider.getCategoryById(todo.categoryId!)

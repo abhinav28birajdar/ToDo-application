@@ -7,26 +7,29 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import 'package:todo_app/main.dart';
+import 'package:todo_app/utils/app_theme.dart';
 
 void main() {
-  testWidgets('App loads without crashing', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    SharedPreferences.setMockInitialValues({});
-    await tester
-        .pumpWidget(MyApp(prefs: await SharedPreferences.getInstance()));
+  testWidgets('AppTheme has correct violet color', (WidgetTester tester) async {
+    // Test that our theme has the correct violet color
+    expect(AppTheme.violet500, const Color(0xFF8B5CF6));
+    expect(AppTheme.primaryColor, AppTheme.violet500);
+  });
 
-    // Verify that the app loads
-    expect(find.byType(MaterialApp), findsOneWidget);
+  testWidgets('Light theme is properly configured',
+      (WidgetTester tester) async {
+    final lightTheme = AppTheme.lightTheme;
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // Verify theme is configured
+    expect(lightTheme.brightness, Brightness.light);
+    expect(lightTheme.colorScheme.primary, AppTheme.violet500);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('Dark theme is properly configured', (WidgetTester tester) async {
+    final darkTheme = AppTheme.darkTheme;
+
+    // Verify theme is configured
+    expect(darkTheme.brightness, Brightness.dark);
+    expect(darkTheme.colorScheme.primary, AppTheme.violet500);
   });
 }

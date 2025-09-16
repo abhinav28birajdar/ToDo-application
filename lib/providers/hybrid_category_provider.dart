@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/supabase_service.dart';
 import '../models/category.dart' as CategoryModel;
 
@@ -17,6 +18,9 @@ class HybridCategoryProvider extends ChangeNotifier {
 
   // Hive box for local storage
   Box<CategoryModel.Category>? _categoryBox;
+
+  // Real-time subscription
+  RealtimeChannel? _categorySubscription;
 
   // Initialize
   Future<void> initialize() async {
@@ -47,6 +51,7 @@ class HybridCategoryProvider extends ChangeNotifier {
       // If cloud sync is enabled and user is authenticated, sync with cloud
       if (_cloudSyncEnabled && _supabaseService.isAuthenticated) {
         await _syncWithCloud();
+        _setupRealtimeSubscription();
       }
     } catch (e) {
       _error = 'Failed to initialize categories: $e';
@@ -57,14 +62,117 @@ class HybridCategoryProvider extends ChangeNotifier {
     }
   }
 
+  // Setup real-time subscription for categories
+  void _setupRealtimeSubscription() {
+    if (!_cloudSyncEnabled || !_supabaseService.isAuthenticated) return;
+
+    try {
+      final userId = _supabaseService.userId;
+      if (userId == null) return;
+
+      _categorySubscription = _supabaseService.client
+          .channel('categories_$userId')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'categories',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'user_id',
+              value: userId,
+            ),
+            callback: _handleRealtimeEvent,
+          )
+          .subscribe();
+
+      debugPrint('Real-time subscription setup for categories: $userId');
+    } catch (e) {
+      debugPrint('Error setting up categories real-time subscription: $e');
+    }
+  }
+
+  // Handle real-time events
+  void _handleRealtimeEvent(PostgresChangePayload payload) {
+    debugPrint('Categories real-time event received: ${payload.eventType}');
+
+    try {
+      switch (payload.eventType) {
+        case PostgresChangeEvent.insert:
+          _handleCategoryInsert(payload.newRecord);
+          break;
+        case PostgresChangeEvent.update:
+          _handleCategoryUpdate(payload.newRecord);
+          break;
+        case PostgresChangeEvent.delete:
+          _handleCategoryDelete(payload.oldRecord);
+          break;
+        case PostgresChangeEvent.all:
+          // Handle all events case
+          break;
+      }
+    } catch (e) {
+      debugPrint('Error handling categories real-time event: $e');
+    }
+  }
+
+  // Handle category insert from real-time
+  void _handleCategoryInsert(Map<String, dynamic> record) {
+    try {
+      final category = CategoryModel.Category.fromJson(record);
+
+      // Check if category already exists
+      final existingIndex = _categories.indexWhere((c) => c.id == category.id);
+      if (existingIndex == -1) {
+        _categories.add(category);
+        _saveToLocal(category);
+        notifyListeners();
+        debugPrint('Real-time: Category inserted - ${category.name}');
+      }
+    } catch (e) {
+      debugPrint('Error handling category insert: $e');
+    }
+  }
+
+  // Handle category update from real-time
+  void _handleCategoryUpdate(Map<String, dynamic> record) {
+    try {
+      final category = CategoryModel.Category.fromJson(record);
+
+      final existingIndex = _categories.indexWhere((c) => c.id == category.id);
+      if (existingIndex != -1) {
+        _categories[existingIndex] = category;
+        _saveToLocal(category);
+        notifyListeners();
+        debugPrint('Real-time: Category updated - ${category.name}');
+      }
+    } catch (e) {
+      debugPrint('Error handling category update: $e');
+    }
+  }
+
+  // Handle category delete from real-time
+  void _handleCategoryDelete(Map<String, dynamic> record) {
+    try {
+      final categoryId = record['id'] as String;
+
+      _categories.removeWhere((category) => category.id == categoryId);
+      _deleteFromLocal(categoryId);
+      notifyListeners();
+      debugPrint('Real-time: Category deleted - $categoryId');
+    } catch (e) {
+      debugPrint('Error handling category delete: $e');
+    }
+  }
+
   // Getters
   List<CategoryModel.Category> get categories => _categories;
-  
+
   List<CategoryModel.Category> get defaultCategories =>
       _categories.where((category) => category.isDefault).toList();
-  
+
   List<CategoryModel.Category> get userCategories =>
-      _categories.where((category) => !category.isDefault).toList();  bool get isLoading => _isLoading;
+      _categories.where((category) => !category.isDefault).toList();
+  bool get isLoading => _isLoading;
   String? get error => _error;
 
   // Load categories from local Hive storage
@@ -268,7 +376,8 @@ class HybridCategoryProvider extends ChangeNotifier {
             //   color: category.color.toARGB32().toRadixString(16),
             //   icon: category.iconData.codePoint.toString(),
             // );
-            debugPrint('Category ${category.id} cloud update skipped - method not implemented');
+            debugPrint(
+                'Category ${category.id} cloud update skipped - method not implemented');
           } catch (e) {
             debugPrint('Failed to update category in cloud: $e');
             // Continue with local update
@@ -312,7 +421,8 @@ class HybridCategoryProvider extends ChangeNotifier {
         try {
           // TODO: Add deleteCategory method to SupabaseService
           // await _supabaseService.deleteCategory(categoryId);
-          debugPrint('Category $categoryId cloud delete skipped - method not implemented');
+          debugPrint(
+              'Category $categoryId cloud delete skipped - method not implemented');
         } catch (e) {
           debugPrint('Failed to delete category from cloud: $e');
           // Continue with local delete
@@ -360,7 +470,26 @@ class HybridCategoryProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _categorySubscription?.unsubscribe();
     _categoryBox?.close();
     super.dispose();
+  }
+
+  // Method to enable cloud sync (called when user logs in)
+  Future<void> enableCloudSync() async {
+    if (!_supabaseService.isAuthenticated) return;
+
+    _cloudSyncEnabled = true;
+    await _syncWithCloud();
+    _setupRealtimeSubscription();
+    notifyListeners();
+  }
+
+  // Method to disable cloud sync (called when user logs out)
+  void disableCloudSync() {
+    _cloudSyncEnabled = false;
+    _categorySubscription?.unsubscribe();
+    _categorySubscription = null;
+    notifyListeners();
   }
 }

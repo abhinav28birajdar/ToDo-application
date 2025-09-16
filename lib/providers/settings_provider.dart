@@ -11,7 +11,7 @@ class SettingsProvider extends ChangeNotifier {
 
   // Default values
   ThemeMode _themeMode = ThemeMode.system;
-  String _accentColor = '#C026D3';
+  String _accentColor = '#8B5CF6'; // Updated to violet500
   String _sortOrder = 'due_date_asc';
   String _filterOption = 'all';
   bool _notificationsEnabled = true;

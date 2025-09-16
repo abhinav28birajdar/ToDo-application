@@ -139,20 +139,20 @@ class Todo extends HiveObject {
       title: json['title'] as String,
       description: json['description'] as String? ?? '',
       isCompleted: json['is_completed'] as bool? ?? false,
-      creationDate: json['created_at'] != null 
+      creationDate: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : DateTime.now(),
-      dueDate: json['due_date'] != null 
+      dueDate: json['due_date'] != null
           ? DateTime.parse(json['due_date'] as String)
           : null,
       categoryId: json['category_id'] as String?,
       priority: json['priority'] as int? ?? 2,
       tags: (json['tags'] as List<dynamic>?)?.cast<String>() ?? [],
       hasNotification: json['has_notification'] as bool? ?? false,
-      notificationTime: json['notification_time'] != null 
+      notificationTime: json['notification_time'] != null
           ? DateTime.parse(json['notification_time'] as String)
           : null,
-      completionDate: json['completed_date'] != null 
+      completionDate: json['completed_date'] != null
           ? DateTime.parse(json['completed_date'] as String)
           : null,
       notes: json['notes'] as String?,
