@@ -359,6 +359,23 @@ class HybridTaskProvider extends ChangeNotifier {
       // Save to local storage
       await _saveToLocal(todo);
 
+      // Schedule notification if todo has due date
+      if (todo.dueDate != null) {
+        try {
+          await NotificationService.instance.scheduleTodoNotification(
+            id: todo.id,
+            title: todo.title,
+            body: todo.description.isNotEmpty
+                ? todo.description
+                : 'Don\'t forget about this task!',
+            scheduledDate: todo.dueDate!,
+          );
+          debugPrint('Notification scheduled for todo: ${todo.title}');
+        } catch (e) {
+          debugPrint('Failed to schedule notification: $e');
+        }
+      }
+
       // If cloud sync is enabled, try to save to cloud
       if (_cloudSyncEnabled && _supabaseService.isAuthenticated) {
         try {

@@ -402,7 +402,6 @@ class SupabaseService {
       }
 
       final result = await queryBuilder
-          .order('sort_order')
           .order('created_at', ascending: false)
           .range(offset, offset + limit - 1);
 

@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_core/firebase_core.dart';
 
 import 'config/supabase_config.dart';
 import 'models/category.dart';
@@ -13,11 +15,13 @@ import 'providers/hybrid_task_provider.dart';
 import 'providers/hybrid_category_provider.dart';
 import 'providers/note_provider.dart';
 import 'providers/settings_provider.dart';
-import 'screens/home_screen.dart';
+import 'screens/main_navigation_screen.dart';
 import 'screens/auth_screen.dart';
 import 'services/supabase_service.dart';
 import 'services/notification_service.dart';
-import 'utils/app_theme.dart';
+import 'services/firebase_notification_service.dart';
+import 'services/theme_service.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,6 +29,14 @@ void main() async {
   try {
     // Load environment variables
     await dotenv.load(fileName: ".env");
+
+    // Initialize Firebase first
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    // Set background message handler for Firebase
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
     // Initialize Hive
     await Hive.initFlutter();
@@ -47,6 +59,15 @@ void main() async {
     final notificationService = NotificationService.instance;
     await notificationService.initializeNotifications();
 
+    // Initialize Firebase Notification Service
+    try {
+      await FirebaseNotificationService.instance.initialize();
+      debugPrint('🔔 Firebase Notification Service initialized');
+    } catch (e) {
+      debugPrint('❌ Firebase initialization failed: $e');
+      // Continue without Firebase - app will still work with local notifications
+    }
+
     // Initialize Supabase
     await SupabaseService.initialize(
       url: SupabaseConfig.supabaseUrl,
@@ -56,6 +77,7 @@ void main() async {
     // Create and initialize providers
     final categoryProvider = HybridCategoryProvider();
     final taskProvider = HybridTaskProvider();
+    final themeService = ThemeService();
 
     // Initialize providers
     await categoryProvider.initialize();
@@ -66,6 +88,7 @@ void main() async {
       categoryProvider: categoryProvider,
       taskProvider: taskProvider,
       notificationService: notificationService,
+      themeService: themeService,
     ));
   } catch (e) {
     debugPrint('Error during app initialization: $e');
@@ -78,6 +101,7 @@ class MyApp extends StatelessWidget {
   final HybridCategoryProvider categoryProvider;
   final HybridTaskProvider taskProvider;
   final NotificationService notificationService;
+  final ThemeService themeService;
 
   const MyApp({
     super.key,
@@ -85,6 +109,7 @@ class MyApp extends StatelessWidget {
     required this.categoryProvider,
     required this.taskProvider,
     required this.notificationService,
+    required this.themeService,
   });
 
   @override
@@ -93,18 +118,22 @@ class MyApp extends StatelessWidget {
       providers: [
         Provider<SupabaseService>(create: (_) => SupabaseService()),
         Provider<NotificationService>.value(value: notificationService),
+        Provider<FirebaseNotificationService>.value(
+          value: FirebaseNotificationService.instance,
+        ),
+        ChangeNotifierProvider.value(value: themeService),
         ChangeNotifierProvider(create: (_) => SettingsProvider(prefs)),
         ChangeNotifierProvider.value(value: categoryProvider),
         ChangeNotifierProvider.value(value: taskProvider),
         ChangeNotifierProvider(create: (_) => NoteProvider()),
       ],
-      child: Consumer<SettingsProvider>(
-        builder: (context, settingsProvider, child) {
+      child: Consumer<ThemeService>(
+        builder: (context, themeService, child) {
           return MaterialApp(
             title: 'Pro Organizer',
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: settingsProvider.themeMode,
+            theme: ThemeService.lightTheme,
+            darkTheme: ThemeService.darkTheme,
+            themeMode: themeService.themeMode,
             home: const AuthWrapper(),
             debugShowCheckedModeBanner: false,
             builder: (context, widget) {
@@ -168,7 +197,7 @@ class ErrorApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Pro Organizer',
-      theme: AppTheme.lightTheme,
+      theme: ThemeService.lightTheme,
       home: Scaffold(
         backgroundColor: Colors.red[50],
         body: const Center(
@@ -269,7 +298,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 taskProvider.enableCloudSync();
                 categoryProvider.enableCloudSync();
               });
-              return const HomeScreen();
+              return const MainNavigationScreen();
             } else {
               // User is not authenticated - disable cloud sync
               WidgetsBinding.instance.addPostFrameCallback((_) {

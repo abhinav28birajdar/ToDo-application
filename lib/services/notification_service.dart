@@ -482,6 +482,63 @@ class NotificationService {
     }
   }
 
+  // Schedule notification for Todo object
+  Future<void> scheduleTodoNotification({
+    required String id,
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+  }) async {
+    if (!_initialized) await initializeNotifications();
+
+    try {
+      final channelId =
+          dotenv.env['NOTIFICATION_CHANNEL_ID'] ?? 'todo_notifications';
+      final channelName =
+          dotenv.env['NOTIFICATION_CHANNEL_NAME'] ?? 'Todo Reminders';
+      final channelDescription =
+          dotenv.env['NOTIFICATION_CHANNEL_DESCRIPTION'] ??
+              'Notifications for todo due dates and reminders';
+
+      final androidDetails = AndroidNotificationDetails(
+        channelId,
+        channelName,
+        channelDescription: channelDescription,
+        importance: Importance.high,
+        priority: Priority.high,
+        showWhen: true,
+        icon: '@mipmap/ic_launcher',
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      final notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      // Schedule notification
+      await _notifications.zonedSchedule(
+        id.hashCode,
+        '⏰ Todo Reminder',
+        title,
+        tz.TZDateTime.from(scheduledDate, tz.local),
+        notificationDetails,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+
+      debugPrint('Todo notification scheduled for: $scheduledDate');
+    } catch (e) {
+      debugPrint('Error scheduling todo notification: $e');
+    }
+  }
+
   // Helper methods
   String _getNotificationTitle(Task task) {
     if (task.isOverdue) {

@@ -1,6 +1,19 @@
 # 🚀 Pro-Organizer - Real-Time Todo Application
 
-**A comprehensive, real-time task management and note-taking application built with Flutter and Supabase, featuring offline-first architecture with seamless cloud synchronization.**
+<p align="center">
+  <img src="web/icons/Icon-512.png" alt="Pro-Organizer Logo" width="128" height="128">
+</p>
+
+<p align="center">
+  <strong>A comprehensive, real-time task management and note-taking application built with Flutter and Supabase, featuring offline-first architecture with seamless cloud synchronization.</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Flutter-3.0+-blue.svg?style=flat&logo=flutter" alt="Flutter">
+  <img src="https://img.shields.io/badge/Dart-3.0+-blue.svg?style=flat&logo=dart" alt="Dart">
+  <img src="https://img.shields.io/badge/Supabase-Real--time-green.svg?style=flat&logo=supabase" alt="Supabase">
+  <img src="https://img.shields.io/badge/Theme-Dark%20%2F%20Light-purple.svg?style=flat" alt="Theme">
+</p>
 
 ---
 

@@ -7,6 +7,7 @@ import '../providers/hybrid_category_provider.dart';
 import '../services/backup_service.dart';
 import '../models/app_settings.dart';
 import '../models/task.dart';
+import 'notification_settings_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -152,6 +153,21 @@ class SettingsScreen extends StatelessWidget {
                 '${settingsProvider.reminderMinutesBefore} minutes before due'),
             trailing: const Icon(Icons.arrow_forward_ios),
             onTap: () => _showReminderTimeDialog(context, settingsProvider),
+          ),
+          ListTile(
+            leading: const Icon(Icons.notifications_active),
+            title: const Text('Advanced Notification Settings'),
+            subtitle:
+                const Text('Configure Firebase notifications, sounds & alarms'),
+            trailing: const Icon(Icons.arrow_forward_ios),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationSettingsScreen(),
+                ),
+              );
+            },
           ),
         ],
       ),

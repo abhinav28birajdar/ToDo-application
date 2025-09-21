@@ -12,7 +12,6 @@ import '../models/app_settings.dart';
 import 'supabase/supabase_service.dart';
 
 class BackupService {
-  static const String _backupFileName = 'pro_organizer_backup.json';
   static const String _backupFolder = 'backups';
 
   final SupabaseService? _supabaseService;

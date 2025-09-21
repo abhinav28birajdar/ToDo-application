@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/todo.dart';
 import '../providers/hybrid_task_provider.dart';
 import '../providers/hybrid_category_provider.dart';
+import '../services/theme_service.dart';
 import '../widgets/todo_list_tile.dart';
 import 'add_edit_todo_screen.dart';
 
@@ -98,175 +99,90 @@ class _TasksScreenState extends State<TasksScreen> {
     );
   }
 
-  Widget _buildQuickStats() {
+  Widget _buildUnifiedCategoryHeader() {
     return Consumer<HybridTaskProvider>(
       builder: (context, taskProvider, child) {
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-          child: Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  'Total',
-                  '${taskProvider.totalTodos}',
-                  Icons.list_alt,
-                  Colors.blue,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: _buildStatCard(
-                  'Active',
-                  '${taskProvider.activeTodos}',
-                  Icons.pending_actions,
-                  Colors.orange,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: _buildStatCard(
-                  'Done',
-                  '${taskProvider.completedTodos}',
-                  Icons.check_circle,
-                  Colors.green,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: _buildStatCard(
-                  'Overdue',
-                  '${taskProvider.overdueTodos}',
-                  Icons.warning,
-                  Colors.red,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildStatCard(
-      String title, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: color,
+          margin: const EdgeInsets.all(16.0),
+          child: Card(
+            elevation: 6,
+            shadowColor: Colors.black.withOpacity(0.15),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-          ),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 10,
-              color: color.withOpacity(0.8),
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterChips() {
-    return Consumer<HybridTaskProvider>(
-      builder: (context, taskProvider, child) {
-        final selectedFilter = taskProvider.filterOption;
-
-        return Container(
-          height: 40,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: Row(
-              children: [
-                _buildFilterChip(
-                  'All (${taskProvider.totalTodos})',
-                  'all',
-                  selectedFilter,
-                  taskProvider,
-                  Colors.grey,
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                    Theme.of(context).colorScheme.primary.withOpacity(0.05),
+                  ],
                 ),
-                const SizedBox(width: 6),
-                _buildFilterChip(
-                  'Active (${taskProvider.activeTodos})',
-                  'active',
-                  selectedFilter,
-                  taskProvider,
-                  Colors.blue,
-                ),
-                const SizedBox(width: 6),
-                _buildFilterChip(
-                  'Completed (${taskProvider.completedTodos})',
-                  'completed',
-                  selectedFilter,
-                  taskProvider,
-                  Colors.green,
-                ),
-                const SizedBox(width: 6),
-                _buildFilterChip(
-                  'Overdue (${taskProvider.overdueTodos})',
-                  'overdue',
-                  selectedFilter,
-                  taskProvider,
-                  Colors.red,
-                ),
-                const SizedBox(width: 6),
-                _buildFilterChip(
-                  'Today (${taskProvider.todayTodos})',
-                  'today',
-                  selectedFilter,
-                  taskProvider,
-                  Colors.orange,
-                ),
-              ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.category_outlined,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Task Categories',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        Theme.of(context).colorScheme.onSurface,
+                                  ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Total: ${taskProvider.totalTodos} tasks',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withOpacity(0.7),
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         );
       },
-    );
-  }
-
-  Widget _buildFilterChip(
-    String label,
-    String value,
-    String selectedFilter,
-    HybridTaskProvider taskProvider,
-    Color color,
-  ) {
-    final isSelected = selectedFilter == value;
-    return FilterChip(
-      label: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? Colors.white : color,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          fontSize: 12,
-        ),
-      ),
-      selected: isSelected,
-      onSelected: (_) => taskProvider.setFilterOption(value),
-      backgroundColor: color.withOpacity(0.1),
-      selectedColor: color,
-      checkmarkColor: Colors.white,
-      side: BorderSide(color: color.withOpacity(0.3)),
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      visualDensity: VisualDensity.compact,
     );
   }
 
@@ -276,56 +192,116 @@ class _TasksScreenState extends State<TasksScreen> {
         final selectedCategoryId = taskProvider.selectedCategoryId;
         final categories = categoryProvider.categories;
 
-        if (categories.isEmpty) {
-          return const SizedBox.shrink();
-        }
-
         return Container(
-          height: 40,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12.0),
-            child: Row(
-              children: [
-                FilterChip(
-                  label: const Text('All Categories',
-                      style: TextStyle(fontSize: 12)),
-                  selected: selectedCategoryId == null,
-                  onSelected: (_) => taskProvider.setCategoryFilter(null),
-                  backgroundColor: Theme.of(context).colorScheme.surface,
-                  selectedColor: Theme.of(context).colorScheme.primary,
-                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
+          margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 4.0, bottom: 12.0),
+                child: Text(
+                  'Filter by Category',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .onSurface
+                            .withOpacity(0.8),
+                      ),
                 ),
-                const SizedBox(width: 6),
-                ...categories.map((category) {
-                  final isSelected = category.id == selectedCategoryId;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 6.0),
-                    child: FilterChip(
-                      label: Text(
-                        category.name,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : null,
-                          fontSize: 12,
+              ),
+              Container(
+                height: 40,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      // All Categories chip with improved design
+                      Container(
+                        margin: const EdgeInsets.only(right: 8.0),
+                        child: FilterChip(
+                          label: Text(
+                            'All Categories',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: selectedCategoryId == null
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              color: selectedCategoryId == null
+                                  ? Colors.white
+                                  : Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          selected: selectedCategoryId == null,
+                          onSelected: (_) =>
+                              taskProvider.setCategoryFilter(null),
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withOpacity(0.1),
+                          selectedColor: Theme.of(context).colorScheme.primary,
+                          checkmarkColor: Colors.white,
+                          side: BorderSide(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withOpacity(0.3),
+                            width: 1.5,
+                          ),
+                          elevation: selectedCategoryId == null ? 2 : 0,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
                         ),
                       ),
-                      selected: isSelected,
-                      onSelected: (_) {
-                        taskProvider.setCategoryFilter(
-                          isSelected ? null : category.id,
+                      // Category chips
+                      ...categories.map((category) {
+                        final isSelected = category.id == selectedCategoryId;
+                        return Container(
+                          margin: const EdgeInsets.only(right: 8.0),
+                          child: FilterChip(
+                            label: Text(
+                              category.name,
+                              style: TextStyle(
+                                color:
+                                    isSelected ? Colors.white : category.color,
+                                fontSize: 13,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                            selected: isSelected,
+                            onSelected: (_) {
+                              taskProvider.setCategoryFilter(
+                                isSelected ? null : category.id,
+                              );
+                            },
+                            backgroundColor: category.color.withOpacity(0.1),
+                            selectedColor: category.color,
+                            checkmarkColor: Colors.white,
+                            side: BorderSide(
+                              color: category.color.withOpacity(0.4),
+                              width: 1.5,
+                            ),
+                            elevation: isSelected ? 2 : 0,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                            visualDensity: VisualDensity.compact,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
                         );
-                      },
-                      backgroundColor: category.color.withOpacity(0.1),
-                      selectedColor: category.color,
-                      checkmarkColor: Colors.white,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  );
-                }).toList(),
-              ],
-            ),
+                      }).toList(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -339,57 +315,74 @@ class _TasksScreenState extends State<TasksScreen> {
         final isLoading = taskProvider.isLoading;
 
         if (isLoading) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Loading tasks...'),
-              ],
+          return const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(64.0),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Loading tasks...'),
+                  ],
+                ),
+              ),
             ),
           );
         }
 
         if (tasks.isEmpty) {
-          return _buildEmptyState(taskProvider);
+          return SliverToBoxAdapter(
+            child: _buildEmptyState(taskProvider),
+          );
         }
 
-        return ListView.separated(
-          controller: _scrollController,
-          padding: const EdgeInsets.all(16),
-          itemCount: tasks.length,
-          separatorBuilder: (context, index) => const SizedBox(height: 8),
-          itemBuilder: (context, index) {
-            final todo = tasks[index];
-            return Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: TodoListTile(
-                todo: todo,
-                onToggle: () async {
-                  await taskProvider.toggleTodoStatus(todo);
-                },
-                onEdit: () => _navigateToEditTaskScreen(todo),
-                onDelete: () async {
-                  final confirmed = await _showDeleteConfirmation(todo.title);
-                  if (confirmed) {
-                    await taskProvider.deleteTodo(todo.id);
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Task deleted successfully'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  }
-                },
-              ),
-            );
-          },
+        return SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final todo = tasks[index];
+              return Padding(
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  bottom: index == tasks.length - 1
+                      ? 100
+                      : 8, // Extra padding for last item
+                ),
+                child: Card(
+                  elevation: 4,
+                  shadowColor: Colors.black.withOpacity(0.1),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: TodoListTile(
+                    todo: todo,
+                    onToggle: () async {
+                      await taskProvider.toggleTodoStatus(todo);
+                    },
+                    onEdit: () => _navigateToEditTaskScreen(todo),
+                    onDelete: () async {
+                      final confirmed =
+                          await _showDeleteConfirmation(todo.title);
+                      if (confirmed) {
+                        await taskProvider.deleteTodo(todo.id);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Task deleted successfully'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ),
+              );
+            },
+            childCount: tasks.length,
+          ),
         );
       },
     );
@@ -414,41 +407,52 @@ class _TasksScreenState extends State<TasksScreen> {
       icon = Icons.task_alt;
     }
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            size: 80,
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            message,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color:
-                      Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color:
-                      Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-                ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: _navigateToAddTaskScreen,
-            icon: const Icon(Icons.add),
-            label: const Text('Add New Task'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+    return Padding(
+      padding: const EdgeInsets.all(32.0),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(height: 40),
+            Icon(
+              icon,
+              size: 80,
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
             ),
-          ),
-        ],
+            const SizedBox(height: 24),
+            Text(
+              message,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.7),
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.5),
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: _navigateToAddTaskScreen,
+              icon: const Icon(Icons.add),
+              label: const Text('Add New Task'),
+              style: ElevatedButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+            ),
+            const SizedBox(height: 60), // Extra space at bottom
+          ],
+        ),
       ),
     );
   }
@@ -478,25 +482,34 @@ class _TasksScreenState extends State<TasksScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F23),
       appBar: AppBar(
         title: const Text(
           'Todo App',
           style: TextStyle(
-            color: Colors.white,
             fontWeight: FontWeight.w600,
           ),
         ),
-        backgroundColor: const Color(0xFF1A1A2E),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
+          Consumer<ThemeService>(
+            builder: (context, themeService, child) {
+              return IconButton(
+                icon: Icon(
+                  themeService.isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                ),
+                onPressed: () => themeService.toggleTheme(),
+                tooltip: themeService.isDarkMode
+                    ? 'Switch to Light Mode'
+                    : 'Switch to Dark Mode',
+              );
+            },
+          ),
           IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
+            icon: const Icon(Icons.search),
             onPressed: _toggleSearch,
           ),
           IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.white),
+            icon: const Icon(Icons.more_vert),
             onPressed: () {
               // TODO: Implement menu functionality
             },
@@ -505,60 +518,53 @@ class _TasksScreenState extends State<TasksScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _refreshTasks,
-        child: Column(
-          children: [
-            // Quick Stats
-            _buildQuickStats(),
+        child: CustomScrollView(
+          slivers: [
+            // Unified Category Header
+            SliverToBoxAdapter(
+              child: _buildUnifiedCategoryHeader(),
+            ),
 
-            // Filter Chips
-            _buildFilterChips(),
-            const SizedBox(height: 4),
-
-            // Category Filters
-            _buildCategoryFilterChips(),
-            const SizedBox(height: 4),
+            // Category Filters Section
+            SliverToBoxAdapter(
+              child: _buildCategoryFilterChips(),
+            ),
 
             // Search Bar (if visible)
             if (_isSearchVisible)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search tasks...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: _clearSearch,
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search tasks...',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: _clearSearch,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                     ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    autofocus: true,
+                    onChanged: _onSearchChanged,
                   ),
-                  autofocus: true,
-                  onChanged: _onSearchChanged,
                 ),
               ),
 
-            if (_isSearchVisible) const SizedBox(height: 8),
-
             // Task List
-            Expanded(child: _buildTaskList()),
+            _buildTaskList(),
           ],
         ),
       ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FloatingActionButton(
-            heroTag: "add",
-            onPressed: _navigateToAddTaskScreen,
-            backgroundColor: const Color(0xFF8B5CF6),
-            child: const Icon(Icons.add, color: Colors.white),
-          ),
-        ],
+      floatingActionButton: FloatingActionButton(
+        onPressed: _navigateToAddTaskScreen,
+        child: const Icon(Icons.add),
       ),
     );
   }

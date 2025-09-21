@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/user_profile.dart';
-import '../services/supabase/supabase_service.dart';
-import '../utils/app_theme.dart';
+import '../providers/hybrid_task_provider.dart';
+import '../providers/hybrid_category_provider.dart';
+import 'notification_settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -46,12 +47,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      final supabaseService =
-          Provider.of<SupabaseService>(context, listen: false);
-      final userData = await supabaseService.getUserProfile();
-
+      // Create a mock profile for now since we don't have full auth setup
       setState(() {
-        _userProfile = UserProfile.fromSupabase(userData);
+        _userProfile = UserProfile(
+          id: 'user_1',
+          email: 'user@example.com',
+          fullName: 'John Doe',
+          bio: 'Productive task manager user',
+          phoneNumber: '+1 234 567 8900',
+          createdAt: DateTime.now().subtract(const Duration(days: 30)),
+          updatedAt: DateTime.now(),
+        );
         _nameController.text = _userProfile?.fullName ?? '';
         _bioController.text = _userProfile?.bio ?? '';
         _phoneController.text = _userProfile?.phoneNumber ?? '';
@@ -74,17 +80,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      final supabaseService =
-          Provider.of<SupabaseService>(context, listen: false);
-
-      // Upload new avatar if selected
-      if (_selectedImage != null) {
-        final bytes = await _selectedImage!.readAsBytes();
-        final fileName = _selectedImage!.path.split('/').last;
-        final avatarUrl = await supabaseService.uploadAvatar(bytes, fileName);
-        _userProfile = _userProfile!.copyWith(avatarUrl: avatarUrl);
-      }
-
       // Update profile data
       final updatedProfile = _userProfile!.copyWith(
         fullName: _nameController.text,
@@ -92,8 +87,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         phoneNumber: _phoneController.text,
         updatedAt: DateTime.now(),
       );
-
-      await supabaseService.updateUserProfile(updatedProfile.toSupabase());
 
       setState(() {
         _userProfile = updatedProfile;
@@ -104,7 +97,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
+          SnackBar(
+            content: const Text('✅ Profile updated successfully'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } catch (e) {
@@ -131,229 +128,336 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _removeAvatar() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final supabaseService =
-          Provider.of<SupabaseService>(context, listen: false);
-      await supabaseService.deleteAvatar();
-
-      setState(() {
-        _userProfile = _userProfile!.copyWith(avatarUrl: null);
-        _isLoading = false;
-        _selectedImage = null;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Avatar removed')),
-        );
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error removing avatar: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Profile'),
-        actions: [
-          if (!_isEditing)
-            IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () => setState(() => _isEditing = true),
-            )
-          else
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () {
-                setState(() {
-                  _isEditing = false;
-                  _nameController.text = _userProfile?.fullName ?? '';
-                  _bioController.text = _userProfile?.bio ?? '';
-                  _phoneController.text = _userProfile?.phoneNumber ?? '';
-                  _selectedImage = null;
-                });
-              },
-            ),
-        ],
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Error',
-                        style: theme.textTheme.titleLarge,
+              ? _buildErrorState(theme)
+              : CustomScrollView(
+                  slivers: [
+                    _buildSliverAppBar(theme),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            if (_isEditing)
+                              _buildProfileForm(theme)
+                            else ...[
+                              _buildStatsCards(theme),
+                              const SizedBox(height: 24),
+                              _buildProfileActions(theme),
+                              const SizedBox(height: 24),
+                              _buildQuickActions(theme),
+                            ],
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(_errorMessage!),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadUserProfile,
-                        child: const Text('Try Again'),
-                      ),
-                    ],
-                  ),
-                )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      _buildProfileHeader(theme),
-                      const SizedBox(height: 24),
-                      _isEditing
-                          ? _buildProfileForm()
-                          : _buildProfileInfo(theme),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-      bottomNavigationBar: _isEditing
-          ? BottomAppBar(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _saveProfile,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.violet500,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+      floatingActionButton: _isEditing
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                FloatingActionButton(
+                  onPressed: () {
+                    setState(() {
+                      _isEditing = false;
+                      _nameController.text = _userProfile?.fullName ?? '';
+                      _bioController.text = _userProfile?.bio ?? '';
+                      _phoneController.text = _userProfile?.phoneNumber ?? '';
+                      _selectedImage = null;
+                    });
+                  },
+                  backgroundColor: Colors.grey,
+                  child: const Icon(Icons.close),
                 ),
-                child: Text(
-                  'Save Changes',
-                  style: theme.textTheme.bodyLarge!.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+                const SizedBox(width: 16),
+                FloatingActionButton(
+                  onPressed: _isLoading ? null : _saveProfile,
+                  backgroundColor: theme.colorScheme.primary,
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.save),
                 ),
-              ),
+              ],
             )
           : null,
     );
   }
 
-  Widget _buildProfileHeader(ThemeData theme) {
-    return Column(
-      children: [
-        Stack(
-          alignment: Alignment.bottomRight,
-          children: [
-            CircleAvatar(
-              radius: 64,
-              backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
-              backgroundImage: _selectedImage != null
-                  ? FileImage(_selectedImage!) as ImageProvider
-                  : _userProfile?.avatarUrl != null
-                      ? NetworkImage(_userProfile!.avatarUrl!)
-                      : null,
-              child: _userProfile?.avatarUrl == null && _selectedImage == null
-                  ? Icon(
-                      Icons.person,
-                      size: 64,
-                      color: theme.colorScheme.primary,
-                    )
-                  : null,
+  Widget _buildSliverAppBar(ThemeData theme) {
+    return SliverAppBar(
+      expandedHeight: 200,
+      floating: false,
+      pinned: true,
+      backgroundColor: theme.colorScheme.primary,
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                theme.colorScheme.primary,
+                theme.colorScheme.secondary,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            if (_isEditing)
-              InkWell(
-                onTap: _selectImage,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary,
-                    shape: BoxShape.circle,
+          ),
+          child: SafeArea(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 40),
+                  _buildProfileAvatar(theme),
+                  const SizedBox(height: 12),
+                  Text(
+                    _userProfile?.fullName ?? 'User',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.camera_alt,
-                    size: 20,
-                    color: Colors.white,
-                  ),
-                ),
+                  if (_userProfile?.bio != null &&
+                      _userProfile!.bio!.isNotEmpty)
+                    Text(
+                      _userProfile!.bio!,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                ],
               ),
-          ],
+            ),
+          ),
         ),
-        const SizedBox(height: 8),
-        if (_isEditing &&
-            (_userProfile?.avatarUrl != null || _selectedImage != null))
-          TextButton.icon(
-            onPressed: _removeAvatar,
-            icon: const Icon(Icons.delete, size: 16),
-            label: const Text('Remove Avatar'),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
+      ),
+      actions: [
+        if (!_isEditing)
+          IconButton(
+            icon: const Icon(Icons.edit, color: Colors.white),
+            onPressed: () => setState(() => _isEditing = true),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildProfileAvatar(ThemeData theme) {
+    return Stack(
+      alignment: Alignment.bottomRight,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.white,
+              width: 3,
+            ),
+          ),
+          child: CircleAvatar(
+            radius: 50,
+            backgroundColor: Colors.white,
+            backgroundImage: _selectedImage != null
+                ? FileImage(_selectedImage!) as ImageProvider
+                : _userProfile?.avatarUrl != null
+                    ? NetworkImage(_userProfile!.avatarUrl!)
+                    : null,
+            child: _userProfile?.avatarUrl == null && _selectedImage == null
+                ? Icon(
+                    Icons.person,
+                    size: 50,
+                    color: theme.colorScheme.primary,
+                  )
+                : null,
+          ),
+        ),
+        if (_isEditing)
+          InkWell(
+            onTap: _selectImage,
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.camera_alt,
+                size: 20,
+                color: theme.colorScheme.primary,
+              ),
             ),
           ),
       ],
     );
   }
 
-  Widget _buildProfileInfo(ThemeData theme) {
+  Widget _buildStatsCards(ThemeData theme) {
+    final taskProvider = Provider.of<HybridTaskProvider>(context);
+    final categoryProvider = Provider.of<HybridCategoryProvider>(context);
+
+    final totalTasks = taskProvider.todos.length;
+    final completedTasks =
+        taskProvider.todos.where((task) => task.isCompleted).length;
+    final totalCategories = categoryProvider.categories.length;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            theme: theme,
+            title: 'Total Tasks',
+            value: totalTasks.toString(),
+            icon: Icons.task_alt,
+            color: Colors.blue,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            theme: theme,
+            title: 'Completed',
+            value: completedTasks.toString(),
+            icon: Icons.check_circle,
+            color: Colors.green,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            theme: theme,
+            title: 'Categories',
+            value: totalCategories.toString(),
+            icon: Icons.category,
+            color: Colors.orange,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard({
+    required ThemeData theme,
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            size: 32,
+            color: color,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            title,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withOpacity(0.6),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileActions(ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _infoSection(
-          title: 'Name',
-          content: _userProfile?.fullName ?? 'Not set',
-          icon: Icons.person,
-          theme: theme,
+        Text(
+          'Profile Information',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        _infoSection(
+        const SizedBox(height: 16),
+        _buildInfoCard(
+          theme: theme,
           title: 'Email',
-          content: _userProfile?.email ?? '',
+          value: _userProfile?.email ?? '',
           icon: Icons.email,
-          theme: theme,
         ),
+        const SizedBox(height: 12),
         if (_userProfile?.phoneNumber != null &&
             _userProfile!.phoneNumber!.isNotEmpty)
-          _infoSection(
+          _buildInfoCard(
+            theme: theme,
             title: 'Phone',
-            content: _userProfile!.phoneNumber!,
+            value: _userProfile!.phoneNumber!,
             icon: Icons.phone,
-            theme: theme,
           ),
-        if (_userProfile?.bio != null && _userProfile!.bio!.isNotEmpty)
-          _infoSection(
-            title: 'Bio',
-            content: _userProfile!.bio!,
-            icon: Icons.description,
-            theme: theme,
-          ),
-        _infoSection(
-          title: 'Member Since',
-          content:
-              '${_userProfile?.createdAt.toLocal().toString().split(' ')[0]}',
-          icon: Icons.calendar_today,
+        const SizedBox(height: 12),
+        _buildInfoCard(
           theme: theme,
+          title: 'Member Since',
+          value: _formatDate(_userProfile?.createdAt),
+          icon: Icons.calendar_today,
         ),
       ],
     );
   }
 
-  Widget _infoSection({
-    required String title,
-    required String content,
-    required IconData icon,
+  Widget _buildInfoCard({
     required ThemeData theme,
+    required String title,
+    required String value,
+    required IconData icon,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 24, color: theme.colorScheme.primary),
+          Icon(
+            icon,
+            color: theme.colorScheme.primary,
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -361,15 +465,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 Text(
                   title,
-                  style: theme.textTheme.bodySmall!.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onBackground.withOpacity(0.6),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  content,
-                  style: theme.textTheme.bodyLarge,
+                  value,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),
@@ -379,37 +485,155 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileForm() {
+  Widget _buildQuickActions(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Actions',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildActionTile(
+          theme: theme,
+          title: 'Notification Settings',
+          subtitle: 'Configure alerts and reminders',
+          icon: Icons.notifications,
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const NotificationSettingsScreen(),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _buildActionTile(
+          theme: theme,
+          title: 'Export Data',
+          subtitle: 'Backup your tasks and notes',
+          icon: Icons.download,
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Export feature coming soon!')),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _buildActionTile(
+          theme: theme,
+          title: 'Help & Support',
+          subtitle: 'Get help and contact support',
+          icon: Icons.help,
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Help section coming soon!')),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionTile({
+    required ThemeData theme,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.shadow.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ListTile(
+        leading: Icon(
+          icon,
+          color: theme.colorScheme.primary,
+        ),
+        title: Text(
+          title,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withOpacity(0.6),
+          ),
+        ),
+        trailing: Icon(
+          Icons.chevron_right,
+          color: theme.colorScheme.outline,
+        ),
+        onTap: onTap,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    );
+  }
+
+  Widget _buildProfileForm(ThemeData theme) {
     return Form(
       key: _formKey,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            'Edit Profile',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 24),
           TextFormField(
             controller: _nameController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Full Name',
-              prefixIcon: Icon(Icons.person),
-              border: OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.person),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Please enter your name';
+              }
+              return null;
+            },
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: _phoneController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Phone Number',
-              prefixIcon: Icon(Icons.phone),
-              border: OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.phone),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             keyboardType: TextInputType.phone,
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: _bioController,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Bio',
-              prefixIcon: Icon(Icons.description),
-              border: OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.description),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               hintText: 'Tell us about yourself',
             ),
             maxLines: 3,
@@ -417,15 +641,79 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 16),
           TextFormField(
             initialValue: _userProfile?.email ?? '',
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Email',
-              prefixIcon: Icon(Icons.email),
-              border: OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.email),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             enabled: false, // Email cannot be changed
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildErrorState(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: theme.colorScheme.error,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Something went wrong',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                color: theme.colorScheme.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage ?? 'Unknown error occurred',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadUserProfile,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try Again'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'Unknown';
+    final now = DateTime.now();
+    final difference = now.difference(date).inDays;
+
+    if (difference < 30) {
+      return '$difference days ago';
+    } else if (difference < 365) {
+      final months = (difference / 30).floor();
+      return '$months month${months > 1 ? 's' : ''} ago';
+    } else {
+      final years = (difference / 365).floor();
+      return '$years year${years > 1 ? 's' : ''} ago';
+    }
   }
 }

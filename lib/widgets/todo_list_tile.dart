@@ -29,20 +29,25 @@ class TodoListTile extends StatelessWidget {
 
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
-          elevation: 2,
+          elevation: 4,
+          shadowColor: Colors.black.withOpacity(0.1),
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: _getPriorityColor().withOpacity(0.3),
-                width: 2,
+              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Theme.of(context).cardColor,
+                  Theme.of(context).cardColor.withOpacity(0.8),
+                ],
               ),
             ),
             child: ListTile(
               contentPadding:
-                  const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                  const EdgeInsets.symmetric(vertical: 12.0, horizontal: 20.0),
               leading: _buildLeading(category),
               title: _buildTitle(context),
               subtitle: _buildSubtitle(context, category),
