@@ -746,20 +746,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       // Generate PDF
       final pdfData = await PDFService.generateUserProfilePDF(
-        userName: _userProfile.fullName ?? 'User',
-        userEmail: _userProfile.email ?? 'user@example.com',
-        userPhone: _userProfile.phoneNumber,
-        memberSince: _userProfile.memberSince ?? DateTime.now(),
+        userName: _userProfile?.fullName ?? 'User',
+        userEmail: _userProfile?.email ?? 'user@example.com',
+        userPhone: _userProfile?.phoneNumber,
+        memberSince: _userProfile?.createdAt ?? DateTime.now(),
         totalTasks: taskProvider.totalTodos,
         completedTasks: taskProvider.completedTodos,
         pendingTasks: taskProvider.activeTodos,
       );
 
       // Close loading dialog
-      Navigator.of(context).pop();
+      if (mounted) {
+        Navigator.of(context).pop();
 
-      // Show print/save options
-      await PDFService.printPDF(pdfData);
+        // Show print/save options
+        await PDFService.printPDF(pdfData);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -777,7 +779,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       // Close loading dialog if it's open
-      if (Navigator.of(context).canPop()) {
+      if (mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
 

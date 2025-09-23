@@ -10,7 +10,7 @@ import 'notes_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
 import 'add_edit_todo_screen.dart';
-import 'notification_settings_screen.dart';
+import 'notification_page.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -260,21 +260,11 @@ class DashboardScreen extends StatelessWidget {
         foregroundColor: Theme.of(context).primaryColor,
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const TasksScreen(filterType: 'all'),
-                ),
-              );
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => const NotificationSettingsScreen(),
+                  builder: (context) => const NotificationPage(),
                 ),
               );
             },
@@ -597,6 +587,48 @@ class DashboardScreen extends StatelessWidget {
                             ),
                         ],
                       ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.delete_outline,
+                        color: Colors.red.shade400,
+                        size: 20,
+                      ),
+                      onPressed: () async {
+                        // Show confirmation dialog
+                        final confirmed = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: const Text('Delete Task'),
+                            content: Text('Are you sure you want to delete "${task.title}"?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(false),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(true),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                ),
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        );
+                        
+                        if (confirmed == true) {
+                          await taskProvider.deleteTodo(task.id);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Task "${task.title}" deleted'),
+                                backgroundColor: Colors.red.shade400,
+                              ),
+                            );
+                          }
+                        }
+                      },
                     ),
                   ],
                 ),

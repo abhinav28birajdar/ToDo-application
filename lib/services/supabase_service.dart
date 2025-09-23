@@ -3,7 +3,6 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:flutter/foundation.dart';
 // import 'package:sign_in_with_apple/sign_in_with_apple.dart'; // Temporarily disabled
-import 'dart:io';
 import 'dart:typed_data';
 
 class SupabaseService {
