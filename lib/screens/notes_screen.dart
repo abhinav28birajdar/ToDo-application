@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/note.dart';
-import '../services/supabase/supabase_service.dart';
+import '../services/supabase_service.dart';
 import '../widgets/search_bar_widget.dart';
 
 class NotesScreen extends StatefulWidget {
@@ -35,8 +34,7 @@ class _NotesScreenState extends State<NotesScreen> {
     });
 
     try {
-      final supabaseService =
-          Provider.of<SupabaseService>(context, listen: false);
+      final supabaseService = SupabaseService();
       final notesData = await supabaseService.getNotes();
 
       setState(() {
@@ -117,8 +115,7 @@ class _NotesScreenState extends State<NotesScreen> {
 
     if (confirmed == true) {
       try {
-        final supabaseService =
-            Provider.of<SupabaseService>(context, listen: false);
+        final supabaseService = SupabaseService();
         await supabaseService.deleteNote(note.id);
 
         setState(() {
@@ -139,19 +136,17 @@ class _NotesScreenState extends State<NotesScreen> {
 
   Future<void> _toggleFavorite(Note note) async {
     try {
-      final supabaseService =
-          Provider.of<SupabaseService>(context, listen: false);
-      final updatedNote = note.copyWith(isFavorite: !note.isFavorite);
+      final supabaseService = SupabaseService();
+      final updates = {
+        'is_favorite': !note.isFavorite,
+      };
 
-      await supabaseService.updateNote(
-        note.id,
-        updatedNote.toSupabase(),
-      );
+      await supabaseService.updateNote(note.id, updates);
 
       setState(() {
         final index = _notes.indexWhere((n) => n.id == note.id);
         if (index != -1) {
-          _notes[index] = updatedNote;
+          _notes[index] = note.copyWith(isFavorite: !note.isFavorite);
           _filterNotes();
         }
       });
@@ -208,8 +203,7 @@ class _NotesScreenState extends State<NotesScreen> {
     if (confirmed == true && emailController.text.trim().isNotEmpty) {
       try {
         final email = emailController.text.trim();
-        final supabaseService =
-            Provider.of<SupabaseService>(context, listen: false);
+        final supabaseService = SupabaseService();
 
         await supabaseService.shareNote(note.id, email);
 
@@ -647,34 +641,27 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen> {
     });
 
     try {
-      final supabaseService =
-          Provider.of<SupabaseService>(context, listen: false);
+      final supabaseService = SupabaseService();
       final content = _contentController.text.trim();
 
       if (widget.note == null) {
-        // Create new note
-        final newNote = Note(
+        // Create new note using the method signature from the service
+        await supabaseService.createNote(
           title: title,
           content: content,
           isFavorite: _isFavorite,
           tags: _tags,
-          userId: supabaseService.currentUser?.id,
         );
-
-        await supabaseService.createNote(newNote.toSupabase());
       } else {
         // Update existing note
-        final updatedNote = widget.note!.copyWith(
-          title: title,
-          content: content,
-          isFavorite: _isFavorite,
-          tags: _tags,
-        );
+        final updates = {
+          'title': title,
+          'content': content,
+          'is_favorite': _isFavorite,
+          'tags': _tags,
+        };
 
-        await supabaseService.updateNote(
-          widget.note!.id,
-          updatedNote.toSupabase(),
-        );
+        await supabaseService.updateNote(widget.note!.id, updates);
       }
 
       if (mounted) {

@@ -59,11 +59,8 @@ class SupabaseService {
 
       if (response.user != null) {
         try {
-          // Create user session
           await _createUserSession(response.user!);
           debugPrint('User session created successfully');
-
-          // Give the database trigger a moment to create the profile
           await Future.delayed(const Duration(milliseconds: 500));
 
           // Verify profile was created, if not create it manually
@@ -678,6 +675,101 @@ class SupabaseService {
       };
 
       return await client.from('notes').insert(note).select().single();
+    } catch (e) {
+      throw _handleDatabaseError(e);
+    }
+  }
+
+  /// Create a new note from Map
+  Future<Map<String, dynamic>> createNoteFromMap(
+      Map<String, dynamic> noteData) async {
+    try {
+      if (currentUser == null) {
+        throw const AuthException('No user is currently signed in');
+      }
+
+      // Ensure user_id is set
+      noteData['user_id'] = currentUser!.id;
+
+      return await client.from('notes').insert(noteData).select().single();
+    } catch (e) {
+      throw _handleDatabaseError(e);
+    }
+  }
+
+  /// Update a note
+  Future<Map<String, dynamic>> updateNote(
+      String noteId, Map<String, dynamic> updates) async {
+    try {
+      if (currentUser == null) {
+        throw const AuthException('No user is currently signed in');
+      }
+
+      // Update the updated_at timestamp
+      updates['updated_at'] = DateTime.now().toIso8601String();
+
+      final response = await client
+          .from('notes')
+          .update(updates)
+          .eq('id', noteId)
+          .eq('user_id', currentUser!.id)
+          .select()
+          .single();
+
+      return response;
+    } catch (e) {
+      throw _handleDatabaseError(e);
+    }
+  }
+
+  /// Delete a note
+  Future<void> deleteNote(String noteId) async {
+    try {
+      if (currentUser == null) {
+        throw const AuthException('No user is currently signed in');
+      }
+
+      await client
+          .from('notes')
+          .delete()
+          .eq('id', noteId)
+          .eq('user_id', currentUser!.id);
+
+      await _logActivity('note_deleted', 'note', noteId, null);
+    } catch (e) {
+      throw _handleDatabaseError(e);
+    }
+  }
+
+  /// Share a note with another user
+  Future<void> shareNote(String noteId, String email) async {
+    try {
+      if (currentUser == null) {
+        throw const AuthException('No user is currently signed in');
+      }
+
+      // First, find the user by email
+      final userResponse = await client
+          .from('profiles')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle();
+
+      if (userResponse == null) {
+        throw DatabaseException('User with email $email not found');
+      }
+
+      final targetUserId = userResponse['id'] as String;
+
+      // Create a note share record
+      await client.from('note_shares').insert({
+        'note_id': noteId,
+        'shared_by': currentUser!.id,
+        'shared_with': targetUserId,
+        'permission': 'read',
+      });
+
+      await _logActivity('note_shared', 'note', noteId, {'shared_with': email});
     } catch (e) {
       throw _handleDatabaseError(e);
     }

@@ -10,6 +10,7 @@ import 'notes_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
 import 'add_edit_todo_screen.dart';
+import 'notification_settings_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
@@ -261,13 +262,21 @@ class DashboardScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.search),
             onPressed: () {
-              // Implement search functionality
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const TasksScreen(filterType: 'all'),
+                ),
+              );
             },
           ),
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () {
-              // Show notifications
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const NotificationSettingsScreen(),
+                ),
+              );
             },
           ),
         ],
@@ -387,6 +396,13 @@ class DashboardScreen extends StatelessWidget {
             taskProvider.totalTodos.toString(),
             Icons.task_alt,
             Colors.blue,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const TasksScreen(filterType: 'all'),
+                ),
+              );
+            },
           ),
         ),
         const SizedBox(width: 12),
@@ -397,6 +413,14 @@ class DashboardScreen extends StatelessWidget {
             taskProvider.completedTodos.toString(),
             Icons.check_circle,
             Colors.green,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) =>
+                      const TasksScreen(filterType: 'completed'),
+                ),
+              );
+            },
           ),
         ),
         const SizedBox(width: 12),
@@ -407,6 +431,13 @@ class DashboardScreen extends StatelessWidget {
             taskProvider.activeTodos.toString(),
             Icons.pending,
             Colors.orange,
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const TasksScreen(filterType: 'active'),
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -414,40 +445,44 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildStatCard(BuildContext context, String title, String value,
-      IconData icon, Color color) {
+      IconData icon, Color color,
+      {VoidCallback? onTap}) {
     final theme = Theme.of(context);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: color,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
             ),
-          ),
-          Text(
-            title,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.hintColor,
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
-          ),
-        ],
+            Text(
+              title,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.hintColor,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -471,7 +506,11 @@ class DashboardScreen extends StatelessWidget {
             ),
             TextButton(
               onPressed: () {
-                // Navigate to tasks screen
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const TasksScreen(filterType: 'all'),
+                  ),
+                );
               },
               child: const Text('View All'),
             ),
@@ -605,7 +644,12 @@ class DashboardScreen extends StatelessWidget {
                 Icons.note_add,
                 Colors.green,
                 () {
-                  // Navigate to add note
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddEditNoteScreen(),
+                    ),
+                  );
                 },
               ),
             ),

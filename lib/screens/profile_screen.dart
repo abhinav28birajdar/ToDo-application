@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../models/user_profile.dart';
 import '../providers/hybrid_task_provider.dart';
 import '../providers/hybrid_category_provider.dart';
+import '../services/pdf_service.dart';
 import 'notification_settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -514,12 +515,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _buildActionTile(
           theme: theme,
           title: 'Export Data',
-          subtitle: 'Backup your tasks and notes',
-          icon: Icons.download,
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Export feature coming soon!')),
-            );
+          subtitle: 'Download your profile as PDF',
+          icon: Icons.picture_as_pdf,
+          onTap: () async {
+            await _exportUserDataAsPDF();
           },
         ),
         const SizedBox(height: 12),
@@ -549,6 +548,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
         boxShadow: [
           BoxShadow(
             color: theme.colorScheme.shadow.withOpacity(0.1),
@@ -557,29 +559,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ],
       ),
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: theme.colorScheme.primary,
-        ),
-        title: Text(
-          title,
-          style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          splashColor: theme.colorScheme.primary.withOpacity(0.1),
+          highlightColor: theme.colorScheme.primary.withOpacity(0.05),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.chevron_right,
+                  color: theme.colorScheme.outline,
+                ),
+              ],
+            ),
           ),
         ),
-        subtitle: Text(
-          subtitle,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
-          ),
-        ),
-        trailing: Icon(
-          Icons.chevron_right,
-          color: theme.colorScheme.outline,
-        ),
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
     );
   }
@@ -699,6 +721,81 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _exportUserDataAsPDF() async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Generating PDF...'),
+            ],
+          ),
+        ),
+      );
+
+      // Get task statistics
+      final taskProvider =
+          Provider.of<HybridTaskProvider>(context, listen: false);
+
+      // Generate PDF
+      final pdfData = await PDFService.generateUserProfilePDF(
+        userName: _userProfile.fullName ?? 'User',
+        userEmail: _userProfile.email ?? 'user@example.com',
+        userPhone: _userProfile.phoneNumber,
+        memberSince: _userProfile.memberSince ?? DateTime.now(),
+        totalTasks: taskProvider.totalTodos,
+        completedTasks: taskProvider.completedTodos,
+        pendingTasks: taskProvider.activeTodos,
+      );
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Show print/save options
+      await PDFService.printPDF(pdfData);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('📄 Profile PDF generated successfully'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if it's open
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                SizedBox(width: 8),
+                Text('❌ Failed to generate PDF: ${e.toString()}'),
+              ],
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   String _formatDate(DateTime? date) {

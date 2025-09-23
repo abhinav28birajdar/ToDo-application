@@ -59,33 +59,60 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: Colors.blue,
+    return Builder(builder: (context) {
+      final theme = Theme.of(context);
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 16.0),
+        child: Text(
+          title,
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.primary,
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   Widget _buildThemeSettings(
       BuildContext context, SettingsProvider settingsProvider) {
+    final theme = Theme.of(context);
     return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
       child: Column(
         children: [
-          ListTile(
-            leading: const Icon(Icons.palette),
-            title: const Text('Theme'),
-            subtitle: Text(_getThemeModeText(settingsProvider.themeMode)),
-            trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () => _showThemeDialog(context, settingsProvider),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _showThemeDialog(context, settingsProvider),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
+              child: ListTile(
+                leading: Icon(
+                  Icons.palette,
+                  color: theme.colorScheme.primary,
+                ),
+                title: const Text('Theme'),
+                subtitle: Text(_getThemeModeText(settingsProvider.themeMode)),
+                trailing: Icon(
+                  Icons.arrow_forward_ios,
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ),
           ),
+          Divider(height: 1, color: theme.colorScheme.outline.withOpacity(0.2)),
           ListTile(
-            leading: const Icon(Icons.brightness_6),
+            leading: Icon(
+              Icons.brightness_6,
+              color: theme.colorScheme.primary,
+            ),
             title: const Text('Quick Theme Toggle'),
             subtitle: const Text('Tap to cycle through themes'),
             trailing: Switch(
@@ -100,30 +127,66 @@ class SettingsScreen extends StatelessWidget {
 
   Widget _buildDefaultSettings(
       BuildContext context, SettingsProvider settingsProvider) {
+    final theme = Theme.of(context);
     return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
       child: Column(
         children: [
-          ListTile(
-            leading: const Icon(Icons.flag),
-            title: const Text('Default Priority'),
-            subtitle: Text(_getPriorityText(settingsProvider.defaultPriority)),
-            trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () => _showPriorityDialog(context, settingsProvider),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _showPriorityDialog(context, settingsProvider),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
+              child: ListTile(
+                leading: Icon(
+                  Icons.flag,
+                  color: theme.colorScheme.primary,
+                ),
+                title: const Text('Default Priority'),
+                subtitle:
+                    Text(_getPriorityText(settingsProvider.defaultPriority)),
+                trailing: Icon(
+                  Icons.arrow_forward_ios,
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ),
           ),
+          Divider(height: 1, color: theme.colorScheme.outline.withOpacity(0.2)),
           Consumer<HybridCategoryProvider>(
             builder: (context, categoryProvider, child) {
-              return ListTile(
-                leading: const Icon(Icons.category),
-                title: const Text('Default Category'),
-                subtitle: Text(_getDefaultCategoryText(
-                  categoryProvider,
-                  settingsProvider.defaultCategoryId ?? '',
-                )),
-                trailing: const Icon(Icons.arrow_forward_ios),
-                onTap: () => _showDefaultCategoryDialog(
-                  context,
-                  settingsProvider,
-                  categoryProvider,
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _showDefaultCategoryDialog(
+                    context,
+                    settingsProvider,
+                    categoryProvider,
+                  ),
+                  borderRadius:
+                      const BorderRadius.vertical(bottom: Radius.circular(12)),
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.category,
+                      color: theme.colorScheme.primary,
+                    ),
+                    title: const Text('Default Category'),
+                    subtitle: Text(_getDefaultCategoryText(
+                      categoryProvider,
+                      settingsProvider.defaultCategoryId ?? '',
+                    )),
+                    trailing: Icon(
+                      Icons.arrow_forward_ios,
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
                 ),
               );
             },
@@ -135,39 +198,76 @@ class SettingsScreen extends StatelessWidget {
 
   Widget _buildNotificationSettings(
       BuildContext context, SettingsProvider settingsProvider) {
+    final theme = Theme.of(context);
     return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: theme.colorScheme.outline.withOpacity(0.2),
+        ),
+      ),
       child: Column(
         children: [
           SwitchListTile(
-            secondary: const Icon(Icons.notifications),
+            secondary: Icon(
+              Icons.notifications,
+              color: theme.colorScheme.primary,
+            ),
             title: const Text('Enable Notifications'),
             subtitle: const Text('Receive reminders for due todos'),
             value: settingsProvider.notificationsEnabled,
             onChanged: (value) =>
                 settingsProvider.setNotificationsEnabled(value),
           ),
-          ListTile(
-            leading: const Icon(Icons.schedule),
-            title: const Text('Default Reminder Time'),
-            subtitle: Text(
-                '${settingsProvider.reminderMinutesBefore} minutes before due'),
-            trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () => _showReminderTimeDialog(context, settingsProvider),
-          ),
-          ListTile(
-            leading: const Icon(Icons.notifications_active),
-            title: const Text('Advanced Notification Settings'),
-            subtitle:
-                const Text('Configure Firebase notifications, sounds & alarms'),
-            trailing: const Icon(Icons.arrow_forward_ios),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationSettingsScreen(),
+          Divider(height: 1, color: theme.colorScheme.outline.withOpacity(0.2)),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _showReminderTimeDialog(context, settingsProvider),
+              child: ListTile(
+                leading: Icon(
+                  Icons.schedule,
+                  color: theme.colorScheme.primary,
                 ),
-              );
-            },
+                title: const Text('Default Reminder Time'),
+                subtitle: Text(
+                    '${settingsProvider.reminderMinutesBefore} minutes before due'),
+                trailing: Icon(
+                  Icons.arrow_forward_ios,
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ),
+          ),
+          Divider(height: 1, color: theme.colorScheme.outline.withOpacity(0.2)),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const NotificationSettingsScreen(),
+                  ),
+                );
+              },
+              borderRadius:
+                  const BorderRadius.vertical(bottom: Radius.circular(12)),
+              child: ListTile(
+                leading: Icon(
+                  Icons.notifications_active,
+                  color: theme.colorScheme.primary,
+                ),
+                title: const Text('Advanced Notification Settings'),
+                subtitle: const Text(
+                    'Configure Firebase notifications, sounds & alarms'),
+                trailing: Icon(
+                  Icons.arrow_forward_ios,
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+            ),
           ),
         ],
       ),
