@@ -2,15 +2,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/supabase_service.dart';
+import '../services/theme_service.dart';
 
 /// Settings Provider for managing app settings
 /// Version: 2.0.0 (September 8, 2025)
 class SettingsProvider extends ChangeNotifier {
   final SharedPreferences _prefs;
   final SupabaseService _supabaseService = SupabaseService();
+  final ThemeService _themeService = ThemeService();
 
   // Default values
-  ThemeMode _themeMode = ThemeMode.system;
   String _accentColor = '#8B5CF6'; // Updated to violet500
   String _sortOrder = 'due_date_asc';
   String _filterOption = 'all';
@@ -45,7 +46,7 @@ class SettingsProvider extends ChangeNotifier {
 
   // Settings object for backward compatibility
   Map<String, dynamic> get settings => {
-        'theme_mode': _themeMode,
+        'theme_mode': themeMode,
         'accent_color': _accentColor,
         'sort_order': _sortOrder,
         'filter_option': _filterOption,
@@ -76,7 +77,7 @@ class SettingsProvider extends ChangeNotifier {
       };
 
   // Getters
-  ThemeMode get themeMode => _themeMode;
+  ThemeMode get themeMode => _themeService.themeMode;
   String get accentColor => _accentColor;
   String get sortOrder => _sortOrder;
   String get filterOption => _filterOption;
@@ -105,15 +106,14 @@ class SettingsProvider extends ChangeNotifier {
   int get autoSaveInterval => _autoSaveInterval;
   int get maxFileSize => _maxFileSize;
 
-  // Theme getters for backward compatibility
-  bool get isDarkMode => _themeMode == ThemeMode.dark;
-  bool get isLightMode => _themeMode == ThemeMode.light;
-  bool get isSystemMode => _themeMode == ThemeMode.system;
+  // Theme getters using ThemeService
+  bool get isDarkMode => _themeService.isDarkMode;
+  bool get isLightMode => _themeService.isLightMode;
+  bool get isSystemMode => _themeService.isSystemMode;
 
   // Load settings from SharedPreferences and Supabase
   Future<void> _loadSettings() async {
-    // Load from SharedPreferences first (offline cache)
-    _themeMode = ThemeMode.values[_prefs.getInt('theme_mode') ?? 0];
+    // ThemeMode is handled by ThemeService
     _accentColor = _prefs.getString('accent_color') ?? '#C026D3';
     _sortOrder = _prefs.getString('sort_order') ?? 'due_date_asc';
     _filterOption = _prefs.getString('filter_option') ?? 'all';
@@ -159,7 +159,21 @@ class SettingsProvider extends ChangeNotifier {
 
   // Sync with remote settings
   void _syncWithRemoteSettings(Map<String, dynamic> remoteSettings) {
-    _themeMode = _parseThemeMode(remoteSettings['theme_mode']);
+    // Apply theme mode from remote
+    final themeModeString = remoteSettings['theme_mode'];
+    if (themeModeString != null) {
+      switch (themeModeString) {
+        case 'light':
+          _themeService.setLightMode();
+          break;
+        case 'dark':
+          _themeService.setDarkMode();
+          break;
+        case 'system':
+          _themeService.setSystemMode();
+          break;
+      }
+    }
     _accentColor = remoteSettings['accent_color'] ?? _accentColor;
     _sortOrder = remoteSettings['sort_order'] ?? _sortOrder;
     _filterOption = remoteSettings['filter_option'] ?? _filterOption;
@@ -203,34 +217,20 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Parse theme mode from string
-  ThemeMode _parseThemeMode(String? themeModeString) {
-    switch (themeModeString) {
-      case 'light':
-        return ThemeMode.light;
-      case 'dark':
-        return ThemeMode.dark;
-      case 'system':
-      default:
-        return ThemeMode.system;
-    }
-  }
-
-  // Convert theme mode to string
-  String _themeModeToString(ThemeMode themeMode) {
-    switch (themeMode) {
-      case ThemeMode.light:
-        return 'light';
-      case ThemeMode.dark:
-        return 'dark';
-      case ThemeMode.system:
-        return 'system';
+  // Get theme mode as string for remote sync
+  String _getThemeModeString() {
+    if (_themeService.isLightMode) {
+      return 'light';
+    } else if (_themeService.isDarkMode) {
+      return 'dark';
+    } else {
+      return 'system';
     }
   }
 
   // Save settings to local storage
   Future<void> _saveToLocal() async {
-    await _prefs.setInt('theme_mode', _themeMode.index);
+    // Theme mode is handled by ThemeService
     await _prefs.setString('accent_color', _accentColor);
     await _prefs.setString('sort_order', _sortOrder);
     await _prefs.setString('filter_option', _filterOption);
@@ -268,7 +268,7 @@ class SettingsProvider extends ChangeNotifier {
 
     try {
       final settingsMap = {
-        'theme_mode': _themeModeToString(_themeMode),
+        'theme_mode': _getThemeModeString(),
         'accent_color': _accentColor,
         'sort_order': _sortOrder,
         'filter_option': _filterOption,
@@ -304,34 +304,45 @@ class SettingsProvider extends ChangeNotifier {
     }
   }
 
-  // Update theme mode
+  // Update theme mode using ThemeService
   Future<void> updateThemeMode(ThemeMode themeMode) async {
-    _themeMode = themeMode;
-    await _saveToLocal();
+    switch (themeMode) {
+      case ThemeMode.light:
+        _themeService.setLightMode();
+        break;
+      case ThemeMode.dark:
+        _themeService.setDarkMode();
+        break;
+      case ThemeMode.system:
+        _themeService.setSystemMode();
+        break;
+    }
     await _saveToRemote();
     notifyListeners();
   }
 
   // Backward compatibility methods
   Future<void> setThemeMode(String mode) async {
-    final themeMode = _parseThemeMode(mode);
-    await updateThemeMode(themeMode);
+    switch (mode) {
+      case 'light':
+        _themeService.setLightMode();
+        break;
+      case 'dark':
+        _themeService.setDarkMode();
+        break;
+      case 'system':
+      default:
+        _themeService.setSystemMode();
+        break;
+    }
+    await _saveToRemote();
+    notifyListeners();
   }
 
   Future<void> toggleTheme() async {
-    ThemeMode newMode;
-    switch (_themeMode) {
-      case ThemeMode.light:
-        newMode = ThemeMode.dark;
-        break;
-      case ThemeMode.dark:
-        newMode = ThemeMode.system;
-        break;
-      case ThemeMode.system:
-        newMode = ThemeMode.light;
-        break;
-    }
-    await updateThemeMode(newMode);
+    _themeService.toggleTheme();
+    await _saveToRemote();
+    notifyListeners();
   }
 
   // Update accent color
@@ -463,7 +474,7 @@ class SettingsProvider extends ChangeNotifier {
 
   // Reset all settings to defaults
   Future<void> resetToDefaults() async {
-    _themeMode = ThemeMode.system;
+    _themeService.setSystemMode(); // Reset theme to system
     _accentColor = '#C026D3';
     _sortOrder = 'due_date_asc';
     _filterOption = 'all';

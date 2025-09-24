@@ -7,6 +7,8 @@ class ThemeService extends ChangeNotifier {
 
   ThemeMode get themeMode => _themeMode;
   bool get isDarkMode => _themeMode == ThemeMode.dark;
+  bool get isLightMode => _themeMode == ThemeMode.light;
+  bool get isSystemMode => _themeMode == ThemeMode.system;
 
   // App Colors
   static const Color primaryPurple = Color(0xFF8B5CF6);
@@ -30,16 +32,57 @@ class ThemeService extends ChangeNotifier {
   void _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
     final themeModeString = prefs.getString(_themeKey) ?? 'dark';
-    _themeMode = themeModeString == 'light' ? ThemeMode.light : ThemeMode.dark;
+
+    switch (themeModeString) {
+      case 'light':
+        _themeMode = ThemeMode.light;
+        break;
+      case 'dark':
+        _themeMode = ThemeMode.dark;
+        break;
+      case 'system':
+        _themeMode = ThemeMode.system;
+        break;
+      default:
+        _themeMode = ThemeMode.dark;
+    }
+
     notifyListeners();
   }
 
   void toggleTheme() async {
-    _themeMode =
-        _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    // Cycle through theme modes: light -> dark -> system -> light
+    switch (_themeMode) {
+      case ThemeMode.light:
+        setDarkMode();
+        break;
+      case ThemeMode.dark:
+        setSystemMode();
+        break;
+      case ThemeMode.system:
+        setLightMode();
+        break;
+    }
+  }
+
+  void setLightMode() async {
+    _themeMode = ThemeMode.light;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-        _themeKey, _themeMode == ThemeMode.light ? 'light' : 'dark');
+    await prefs.setString(_themeKey, 'light');
+    notifyListeners();
+  }
+
+  void setDarkMode() async {
+    _themeMode = ThemeMode.dark;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_themeKey, 'dark');
+    notifyListeners();
+  }
+
+  void setSystemMode() async {
+    _themeMode = ThemeMode.system;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_themeKey, 'system');
     notifyListeners();
   }
 

@@ -115,9 +115,16 @@ class SettingsScreen extends StatelessWidget {
             ),
             title: const Text('Quick Theme Toggle'),
             subtitle: const Text('Tap to cycle through themes'),
-            trailing: Switch(
-              value: settingsProvider.isDarkMode,
-              onChanged: (_) => settingsProvider.toggleTheme(),
+            trailing: IconButton(
+              icon: Icon(
+                settingsProvider.isDarkMode
+                    ? Icons.dark_mode
+                    : settingsProvider.isLightMode
+                        ? Icons.light_mode
+                        : Icons.brightness_auto,
+                color: theme.colorScheme.primary,
+              ),
+              onPressed: () => settingsProvider.toggleTheme(),
             ),
           ),
         ],

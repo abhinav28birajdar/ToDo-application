@@ -13,6 +13,7 @@ class Note {
   List<String> tags;
   DateTime createdAt;
   DateTime updatedAt;
+  List<dynamic> drawings; // For storing drawing data
 
   Note({
     String? id,
@@ -23,8 +24,10 @@ class Note {
     List<String>? tags,
     DateTime? createdAt,
     DateTime? updatedAt,
+    List<dynamic>? drawings,
   })  : id = id ?? const Uuid().v4(),
         tags = tags ?? [],
+        drawings = drawings ?? [],
         createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
 
@@ -36,6 +39,7 @@ class Note {
     String? userId,
     List<String>? tags,
     DateTime? updatedAt,
+    List<dynamic>? drawings,
   }) {
     return Note(
       id: this.id,
@@ -46,6 +50,7 @@ class Note {
       tags: tags ?? this.tags,
       createdAt: this.createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
+      drawings: drawings ?? this.drawings,
     );
   }
 
@@ -64,6 +69,7 @@ class Note {
       'is_favorite': isFavorite,
       'user_id': userId,
       'tags': tags,
+      'drawings': drawings,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -79,6 +85,7 @@ class Note {
       userId: map['user_id'] as String?,
       tags: (map['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
           [],
+      drawings: map['drawings'] as List<dynamic>? ?? [],
       createdAt: DateTime.parse(map['created_at'] as String),
       updatedAt: DateTime.parse(map['updated_at'] as String),
     );

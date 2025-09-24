@@ -10,6 +10,7 @@ import 'notes_screen.dart';
 import 'profile_screen.dart';
 import 'settings_screen.dart';
 import 'add_edit_todo_screen.dart';
+import 'add_edit_note_screen.dart';
 import 'notification_page.dart';
 
 class MainNavigationScreen extends StatefulWidget {
@@ -158,20 +159,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen>
   }
 
   void _showAddNoteDialog() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.9,
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: const Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text('Add Note Dialog - To be implemented'),
-        ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const AddEditNoteScreen(),
       ),
     );
   }
@@ -600,14 +591,17 @@ class DashboardScreen extends StatelessWidget {
                           context: context,
                           builder: (context) => AlertDialog(
                             title: const Text('Delete Task'),
-                            content: Text('Are you sure you want to delete "${task.title}"?'),
+                            content: Text(
+                                'Are you sure you want to delete "${task.title}"?'),
                             actions: [
                               TextButton(
-                                onPressed: () => Navigator.of(context).pop(false),
+                                onPressed: () =>
+                                    Navigator.of(context).pop(false),
                                 child: const Text('Cancel'),
                               ),
                               TextButton(
-                                onPressed: () => Navigator.of(context).pop(true),
+                                onPressed: () =>
+                                    Navigator.of(context).pop(true),
                                 style: TextButton.styleFrom(
                                   foregroundColor: Colors.red,
                                 ),
@@ -616,7 +610,7 @@ class DashboardScreen extends StatelessWidget {
                             ],
                           ),
                         );
-                        
+
                         if (confirmed == true) {
                           await taskProvider.deleteTodo(task.id);
                           if (context.mounted) {

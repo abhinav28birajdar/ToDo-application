@@ -655,6 +655,7 @@ class SupabaseService {
     List<String>? tags,
     String? categoryId,
     String folderPath = '/',
+    List<dynamic>? drawings,
   }) async {
     try {
       if (currentUser == null) {
@@ -671,6 +672,7 @@ class SupabaseService {
         'tags': tags,
         'category_id': categoryId,
         'folder_path': folderPath,
+        'drawings': drawings,
       };
 
       return await client.from('notes').insert(note).select().single();

@@ -165,7 +165,8 @@ class _NotificationPageState extends State<NotificationPage> {
                 context: context,
                 builder: (context) => AlertDialog(
                   title: const Text('Clear All Notifications'),
-                  content: const Text('Are you sure you want to clear all notifications?'),
+                  content: const Text(
+                      'Are you sure you want to clear all notifications?'),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(false),
@@ -179,7 +180,7 @@ class _NotificationPageState extends State<NotificationPage> {
                   ],
                 ),
               );
-              
+
               if (confirmed == true) {
                 setState(() {
                   _notifications.clear();
@@ -232,7 +233,8 @@ class _NotificationPageState extends State<NotificationPage> {
     );
   }
 
-  Widget _buildNotificationCard(NotificationItem notification, ThemeData theme) {
+  Widget _buildNotificationCard(
+      NotificationItem notification, ThemeData theme) {
     return Dismissible(
       key: Key(notification.id),
       background: Container(
@@ -275,12 +277,12 @@ class _NotificationPageState extends State<NotificationPage> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
-          color: notification.isRead 
-              ? theme.cardColor 
+          color: notification.isRead
+              ? theme.cardColor
               : theme.primaryColor.withOpacity(0.05),
           borderRadius: BorderRadius.circular(12),
-          border: notification.isRead 
-              ? null 
+          border: notification.isRead
+              ? null
               : Border.all(
                   color: theme.primaryColor.withOpacity(0.2),
                   width: 1,
@@ -309,7 +311,8 @@ class _NotificationPageState extends State<NotificationPage> {
           title: Text(
             notification.title,
             style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+              fontWeight:
+                  notification.isRead ? FontWeight.normal : FontWeight.bold,
             ),
           ),
           subtitle: Column(
@@ -326,8 +329,8 @@ class _NotificationPageState extends State<NotificationPage> {
               ),
             ],
           ),
-          trailing: notification.isRead 
-              ? null 
+          trailing: notification.isRead
+              ? null
               : Container(
                   width: 8,
                   height: 8,
