@@ -4,12 +4,15 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/supabase_service.dart';
 import '../services/notification_service.dart';
+import '../services/real_time_notification_manager.dart';
 import '../models/todo.dart';
 
 /// Hybrid Task Provider for managing task state with local storage and optional cloud sync
 /// Version: 3.0.0 (September 9, 2025)
 class HybridTaskProvider extends ChangeNotifier {
   final SupabaseService _supabaseService = SupabaseService();
+  final RealTimeNotificationManager _realTimeNotifications =
+      RealTimeNotificationManager();
 
   List<Todo> _todos = [];
   bool _isLoading = false;
@@ -393,6 +396,9 @@ class HybridTaskProvider extends ChangeNotifier {
         }
       }
 
+      // Show real-time creation notification
+      await _realTimeNotifications.showTaskCreatedNotification(todo);
+
       debugPrint('Todo added successfully: ${todo.title}');
     } catch (e) {
       _error = 'Failed to add todo: $e';
@@ -436,6 +442,10 @@ class HybridTaskProvider extends ChangeNotifier {
           }
         }
 
+        // Show real-time update notification (only if not a completion toggle)
+        // The completion toggle has its own notification in toggleTodoCompletion
+        await _realTimeNotifications.showTaskUpdatedNotification(todo);
+
         debugPrint('Todo updated successfully: ${todo.title}');
       }
     } catch (e) {
@@ -452,6 +462,9 @@ class HybridTaskProvider extends ChangeNotifier {
     try {
       _isLoading = true;
       notifyListeners();
+
+      // Find the todo before deleting for notification
+      final todoToDelete = _todos.firstWhere((todo) => todo.id == todoId);
 
       // Remove from local list
       _todos.removeWhere((todo) => todo.id == todoId);
@@ -470,6 +483,9 @@ class HybridTaskProvider extends ChangeNotifier {
         }
       }
 
+      // Show real-time deletion notification
+      await _realTimeNotifications.showTaskDeletedNotification(todoToDelete);
+
       debugPrint('Todo deleted successfully: $todoId');
     } catch (e) {
       _error = 'Failed to delete todo: $e';
@@ -483,11 +499,17 @@ class HybridTaskProvider extends ChangeNotifier {
   // Toggle completion status
   Future<void> toggleTodoCompletion(String todoId) async {
     final todo = _todos.firstWhere((t) => t.id == todoId);
+    final isBeingCompleted = !todo.isCompleted;
     final updatedTodo = todo.copyWith(
-      isCompleted: !todo.isCompleted,
-      completionDate: !todo.isCompleted ? DateTime.now() : null,
+      isCompleted: isBeingCompleted,
+      completionDate: isBeingCompleted ? DateTime.now() : null,
     );
     await updateTodo(updatedTodo);
+
+    // Show real-time completion notification with sound if task was just completed
+    if (isBeingCompleted) {
+      await _realTimeNotifications.showTaskCompletionNotification(updatedTodo);
+    }
   }
 
   // Toggle completion status (alias for compatibility)

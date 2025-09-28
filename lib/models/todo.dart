@@ -132,6 +132,9 @@ class Todo extends HiveObject {
   // Compatibility getter for createdAt
   DateTime get createdAt => creationDate;
 
+  // Compatibility getter for completedAt
+  DateTime? get completedAt => completionDate;
+
   // Factory constructor for creating Todo from JSON
   factory Todo.fromJson(Map<String, dynamic> json) {
     return Todo(

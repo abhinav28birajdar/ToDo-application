@@ -4,9 +4,11 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 import '../models/task.dart';
+import 'audio_service.dart';
 
 class NotificationService {
   final FlutterLocalNotificationsPlugin _notifications;
+  final AudioService _audioService = AudioService();
   bool _initialized = false;
 
   // Static instance for singleton pattern
@@ -248,6 +250,8 @@ class NotificationService {
         emoji = '🎉';
         notificationTitle = 'Task Completed!';
         notificationBody = '$emoji Congratulations! You completed: $title';
+        // Play notification sound for completed tasks
+        await _audioService.playNotificationSound();
         break;
       case 'deleted':
         emoji = '🗑️';

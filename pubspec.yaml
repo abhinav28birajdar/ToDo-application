@@ -26,7 +26,7 @@ dependencies:
   path_provider: ^2.1.4
 
   # For date formatting
-  intl: ^0.19.0
+  intl: ^0.20.2
 
   # For unique IDs
   uuid: ^4.5.1
@@ -71,8 +71,20 @@ dependencies:
   # For Facebook Sign In (optional)
   flutter_facebook_auth: ^6.0.4
   
-  # For sign in with Apple (iOS) - Temporarily disabled due to Android build issues
-  # sign_in_with_apple: ^5.0.0
+  # For rich text editing
+  flutter_quill: ^11.4.2
+  
+  # For audio playback
+  audioplayers: ^6.0.0
+  
+  # For flutter secure storage
+  flutter_secure_storage: ^9.2.2
+  
+  # For camera access
+  camera: ^0.10.6
+  
+  # For permissions
+  permission_handler: ^11.3.1
 
   cupertino_icons: ^1.0.8
 
@@ -99,3 +111,5 @@ flutter:
     - .env
     - web/favicon.png
     - web/icons/
+    - assets/sounds/
+    - assets/images/

@@ -6,6 +6,7 @@ import '../models/user_profile.dart';
 import '../providers/hybrid_task_provider.dart';
 import '../providers/hybrid_category_provider.dart';
 import '../services/pdf_service.dart';
+import '../services/auth_service.dart';
 import 'notification_settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -48,22 +49,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      // Create a mock profile for now since we don't have full auth setup
-      setState(() {
-        _userProfile = UserProfile(
-          id: 'user_1',
-          email: 'user@example.com',
-          fullName: 'John Doe',
-          bio: 'Productive task manager user',
-          phoneNumber: '+1 234 567 8900',
-          createdAt: DateTime.now().subtract(const Duration(days: 30)),
-          updatedAt: DateTime.now(),
-        );
-        _nameController.text = _userProfile?.fullName ?? '';
-        _bioController.text = _userProfile?.bio ?? '';
-        _phoneController.text = _userProfile?.phoneNumber ?? '';
-        _isLoading = false;
-      });
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final profile = authService.userProfile;
+
+      if (profile != null) {
+        setState(() {
+          _userProfile = profile;
+          _nameController.text = profile.fullName ?? '';
+          _bioController.text = profile.bio ?? '';
+          _phoneController.text = profile.phoneNumber ?? '';
+          _isLoading = false;
+        });
+      } else {
+        // Create a mock profile if no user is authenticated
+        setState(() {
+          _userProfile = UserProfile(
+            id: 'user_1',
+            email: 'user@example.com',
+            fullName: 'John Doe',
+            bio: 'Productive task manager user',
+            phoneNumber: '+1 234 567 8900',
+            createdAt: DateTime.now().subtract(const Duration(days: 30)),
+            updatedAt: DateTime.now(),
+          );
+          _nameController.text = _userProfile?.fullName ?? '';
+          _bioController.text = _userProfile?.bio ?? '';
+          _phoneController.text = _userProfile?.phoneNumber ?? '';
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       setState(() {
         _errorMessage = 'Error loading profile: $e';
@@ -81,16 +95,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     try {
-      // Update profile data
-      final updatedProfile = _userProfile!.copyWith(
-        fullName: _nameController.text,
-        bio: _bioController.text,
-        phoneNumber: _phoneController.text,
-        updatedAt: DateTime.now(),
-      );
+      final authService = Provider.of<AuthService>(context, listen: false);
+
+      // Update profile in Supabase
+      await authService.updateUserProfile({
+        'full_name': _nameController.text.trim(),
+        'bio': _bioController.text.trim(),
+        'phone': _phoneController.text.trim(),
+      });
 
       setState(() {
-        _userProfile = updatedProfile;
+        _userProfile = authService.userProfile;
         _isEditing = false;
         _isLoading = false;
         _selectedImage = null;

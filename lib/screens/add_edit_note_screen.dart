@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/note.dart';
 import '../services/supabase_service.dart';
 import '../widgets/drawing_pad.dart';
+import '../widgets/rich_text_editor.dart';
 
 class AddEditNoteScreen extends StatefulWidget {
   final Note? note;
@@ -16,11 +17,11 @@ class AddEditNoteScreen extends StatefulWidget {
 class _AddEditNoteScreenState extends State<AddEditNoteScreen>
     with SingleTickerProviderStateMixin {
   late TextEditingController _titleController;
-  late TextEditingController _contentController;
   late TextEditingController _tagController;
   late List<String> _tags;
   late bool _isFavorite;
   late List<dynamic> _drawings;
+  String _contentData = '';
   bool _isLoading = false;
   bool _contentChanged = false;
   late TabController _tabController;
@@ -29,28 +30,17 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen>
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.note?.title ?? '');
-    _contentController =
-        TextEditingController(text: widget.note?.content ?? '');
+    _contentData = widget.note?.content ?? '';
     _tagController = TextEditingController();
     _tags = widget.note?.tags.toList() ?? [];
     _isFavorite = widget.note?.isFavorite ?? false;
     _drawings = widget.note?.drawings ?? [];
     _tabController = TabController(length: 2, vsync: this);
-
-    // Listen for content changes
-    _contentController.addListener(() {
-      if (!_contentChanged && _contentController.text != widget.note?.content) {
-        setState(() {
-          _contentChanged = true;
-        });
-      }
-    });
   }
 
   @override
   void dispose() {
     _titleController.dispose();
-    _contentController.dispose();
     _tagController.dispose();
     _tabController.dispose();
     super.dispose();
@@ -72,13 +62,12 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen>
 
     try {
       final supabaseService = SupabaseService();
-      final content = _contentController.text.trim();
 
       if (widget.note == null) {
         // Create new note
         await supabaseService.createNote(
           title: title,
-          content: content,
+          content: _contentData,
           isFavorite: _isFavorite,
           tags: _tags,
           drawings: _drawings,
@@ -87,7 +76,7 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen>
         // Update existing note
         final updates = {
           'title': title,
-          'content': content,
+          'content': _contentData,
           'is_favorite': _isFavorite,
           'tags': _tags,
           'drawings': _drawings,
@@ -199,16 +188,19 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen>
 
                       const Divider(),
 
-                      // Content field
-                      TextField(
-                        controller: _contentController,
-                        maxLines: null,
-                        keyboardType: TextInputType.multiline,
-                        style: const TextStyle(fontSize: 16),
-                        decoration: const InputDecoration(
-                          hintText: 'Write your note here...',
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(vertical: 8),
+                      // Rich Text Content field
+                      Container(
+                        height: 300,
+                        child: RichTextEditor(
+                          initialContent: _contentData,
+                          onContentChanged: (content) {
+                            _contentData = content;
+                            if (!_contentChanged) {
+                              setState(() {
+                                _contentChanged = true;
+                              });
+                            }
+                          },
                         ),
                       ),
 

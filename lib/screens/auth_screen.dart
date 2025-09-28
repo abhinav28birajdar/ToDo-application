@@ -2,12 +2,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 // import 'package:sign_in_with_apple/sign_in_with_apple.dart'; // Temporarily disabled
-import '../services/supabase_service.dart';
+import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import '../utils/app_theme.dart';
-import 'home_screen.dart';
+import 'main_navigation_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({Key? key}) : super(key: key);
@@ -79,18 +78,24 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     });
 
     try {
-      final supabaseService =
-          Provider.of<SupabaseService>(context, listen: false);
+      final authService = Provider.of<AuthService>(context, listen: false);
 
       if (_isSignUp) {
-        final response = await supabaseService.signUpWithEmail(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-          fullName: _nameController.text.trim(),
+        final response = await authService.signUpWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text,
+          displayName: _nameController.text.trim(),
         );
 
         if (response.user != null) {
-          if (mounted) {
+          // Initialize notifications
+          await NotificationService.instance.initializeNotifications();
+
+          if (response.session != null && mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+            );
+          } else if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text(
@@ -101,14 +106,17 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
           }
         }
       } else {
-        final response = await supabaseService.signInWithEmail(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
+        final response = await authService.signInWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text,
         );
 
-        if (response.user != null && mounted) {
+        if (response.session != null && mounted) {
+          // Initialize notifications
+          await NotificationService.instance.initializeNotifications();
+
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
           );
         }
       }
@@ -132,38 +140,15 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     });
 
     try {
-      final GoogleSignIn googleSignIn = GoogleSignIn(
-        serverClientId:
-            'YOUR_GOOGLE_CLIENT_ID', // Replace with your Google client ID
-      );
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final response = await authService.signInWithGoogle();
 
-      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-      if (googleUser == null) {
-        setState(() {
-          _isLoading = false;
-        });
-        return;
-      }
+      if (response?.session != null && mounted) {
+        // Initialize notifications
+        await NotificationService.instance.initializeNotifications();
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-      final accessToken = googleAuth.accessToken;
-      final idToken = googleAuth.idToken;
-
-      if (accessToken == null) {
-        throw Exception('No Access Token found.');
-      }
-      if (idToken == null) {
-        throw Exception('No ID Token found.');
-      }
-
-      final supabaseService =
-          Provider.of<SupabaseService>(context, listen: false);
-      final response = await supabaseService.signInWithGoogle();
-
-      if (response.user != null && mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
         );
       }
     } catch (e) {
@@ -186,25 +171,16 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     });
 
     try {
-      final LoginResult result = await FacebookAuth.instance.login();
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final response = await authService.signInWithFacebook();
 
-      if (result.status == LoginStatus.success) {
-        final AccessToken? accessToken = result.accessToken;
-        if (accessToken == null) {
-          throw Exception('No access token found.');
-        }
+      if (response?.session != null && mounted) {
+        // Initialize notifications
+        await NotificationService.instance.initializeNotifications();
 
-        final supabaseService =
-            Provider.of<SupabaseService>(context, listen: false);
-        final response = await supabaseService.signInWithFacebook();
-
-        if (response.user != null && mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          );
-        }
-      } else {
-        throw Exception('Facebook login failed: ${result.status}');
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+        );
       }
     } catch (e) {
       setState(() {

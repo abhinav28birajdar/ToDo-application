@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../models/todo.dart';
 import '../providers/hybrid_category_provider.dart';
+import '../screens/todo_detail_screen.dart';
 
 class TodoListTile extends StatelessWidget {
   final Todo todo;
@@ -52,7 +53,12 @@ class TodoListTile extends StatelessWidget {
               title: _buildTitle(context),
               subtitle: _buildSubtitle(context, category),
               trailing: _buildTrailing(context),
-              onTap: onEdit,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => TodoDetailScreen(todo: todo),
+                ),
+              ),
             ),
           ),
         );

@@ -6,6 +6,7 @@ import '../providers/hybrid_task_provider.dart';
 import '../providers/hybrid_category_provider.dart';
 import '../providers/settings_provider.dart';
 import '../models/todo.dart';
+import '../widgets/rich_text_editor.dart';
 
 class AddEditTodoScreen extends StatefulWidget {
   final Todo? todo; // Optional todo to edit
@@ -20,7 +21,7 @@ class _AddEditTodoScreenState extends State<AddEditTodoScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _titleController;
   late TextEditingController _descriptionController;
-  late TextEditingController _notesController;
+  String _notesContent = '';
 
   DateTime? _selectedDueDate;
   DateTime? _selectedDueTime;
@@ -47,9 +48,7 @@ class _AddEditTodoScreenState extends State<AddEditTodoScreen> {
     _descriptionController = TextEditingController(
       text: _isEditing ? widget.todo!.description : '',
     );
-    _notesController = TextEditingController(
-      text: _isEditing ? widget.todo!.notes ?? '' : '',
-    );
+    _notesContent = _isEditing ? widget.todo!.notes ?? '' : '';
   }
 
   void _initializeFields() {
@@ -77,7 +76,6 @@ class _AddEditTodoScreenState extends State<AddEditTodoScreen> {
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _notesController.dispose();
     _tagController.dispose();
     super.dispose();
   }
@@ -157,19 +155,31 @@ class _AddEditTodoScreenState extends State<AddEditTodoScreen> {
               _buildTagsSection(),
               const SizedBox(height: 16),
 
-              // Notes Field
-              TextFormField(
-                controller: _notesController,
-                decoration: const InputDecoration(
-                  labelText: 'Additional Notes',
-                  hintText: 'Any additional information...',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.note),
+              // Rich Text Notes Field
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Additional Notes',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 200,
+                        child: RichTextEditor(
+                          initialContent: _notesContent,
+                          onContentChanged: (content) {
+                            _notesContent = content;
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                maxLines: 4,
-                maxLength: 1000,
-                keyboardType: TextInputType.multiline,
-                textCapitalization: TextCapitalization.sentences,
               ),
               const SizedBox(height: 24),
 
@@ -665,7 +675,7 @@ class _AddEditTodoScreenState extends State<AddEditTodoScreen> {
           tags: _tags,
           hasNotification: _hasNotification,
           notificationTime: _notificationTime,
-          notes: _notesController.text.trim(),
+          notes: _notesContent,
         );
         taskProvider.updateTodo(updatedTodo);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -685,7 +695,7 @@ class _AddEditTodoScreenState extends State<AddEditTodoScreen> {
           tags: _tags,
           hasNotification: _hasNotification,
           notificationTime: _notificationTime,
-          notes: _notesController.text.trim(),
+          notes: _notesContent,
         );
         taskProvider.addTodo(newTodo);
         ScaffoldMessenger.of(context).showSnackBar(

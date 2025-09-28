@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import '../models/note.dart';
 import '../services/supabase_service.dart';
 import '../widgets/search_bar_widget.dart';
+import '../widgets/rich_text_editor.dart';
 import 'add_edit_note_screen.dart';
 
 class NotesScreen extends StatefulWidget {
@@ -159,8 +160,12 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Future<void> _shareNote(Note note) async {
+    final contentToShare = isRichTextContent(note.content)
+        ? richTextToPlainText(note.content)
+        : note.content;
+
     await Share.share(
-      '${note.title}\n\n${note.content}',
+      '${note.title}\n\n$contentToShare',
       subject: note.title,
     );
   }
@@ -220,7 +225,11 @@ class _NotesScreenState extends State<NotesScreen> {
   }
 
   Future<void> _copyToClipboard(Note note) async {
-    await Clipboard.setData(ClipboardData(text: note.content));
+    final textToCopy = isRichTextContent(note.content)
+        ? richTextToPlainText(note.content)
+        : note.content;
+
+    await Clipboard.setData(ClipboardData(text: textToCopy));
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Note content copied to clipboard')),
@@ -553,11 +562,18 @@ class _NotesScreenState extends State<NotesScreen> {
               Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(
-                  note.preview,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: isRichTextContent(note.content)
+                    ? Container(
+                        height: 60,
+                        child: RichTextDisplay(
+                          content: note.content,
+                        ),
+                      )
+                    : Text(
+                        note.preview,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
               ),
             if (note.tags.isNotEmpty)
               Padding(
