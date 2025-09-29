@@ -62,7 +62,4 @@
 - **Provider** - State management and dependency injection
 - **Hive** - Local NoSQL database for offline storage
 
-### **Backend Infrastructure**
-- **Supabase** - Real-time database and authentication
-- **PostgreSQL** - Robust relational database with real-time subscriptions
-- **Row Level Security (RLS)** - Database-level security policies
+

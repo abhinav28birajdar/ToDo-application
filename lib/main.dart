@@ -17,10 +17,12 @@ import 'providers/note_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/main_navigation_screen.dart';
 import 'screens/auth_screen.dart';
+import 'screens/alarm_management_screen.dart';
 import 'services/supabase_service.dart';
 import 'services/notification_service.dart';
 import 'services/firebase_notification_service.dart';
 import 'services/theme_service.dart';
+import 'services/auth_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -121,6 +123,7 @@ class MyApp extends StatelessWidget {
         Provider<FirebaseNotificationService>.value(
           value: FirebaseNotificationService.instance,
         ),
+        ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider.value(value: themeService),
         ChangeNotifierProvider(create: (_) => SettingsProvider(prefs)),
         ChangeNotifierProvider.value(value: categoryProvider),
@@ -136,6 +139,9 @@ class MyApp extends StatelessWidget {
             themeMode: themeService.themeMode,
             home: const AuthWrapper(),
             debugShowCheckedModeBanner: false,
+            routes: {
+              '/alarm-management': (context) => const AlarmManagementScreen(),
+            },
             builder: (context, widget) {
               // Handle potential errors in the widget tree
               ErrorWidget.builder = (FlutterErrorDetails errorDetails) {
@@ -281,8 +287,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
       return const SplashScreen();
     }
 
-    return Consumer2<HybridTaskProvider, HybridCategoryProvider>(
-      builder: (context, taskProvider, categoryProvider, child) {
+    return Consumer3<AuthService, HybridTaskProvider, HybridCategoryProvider>(
+      builder: (context, authService, taskProvider, categoryProvider, child) {
         return StreamBuilder<AuthState>(
           stream: Supabase.instance.client.auth.onAuthStateChange,
           builder: (context, snapshot) {

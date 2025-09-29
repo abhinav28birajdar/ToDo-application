@@ -18,7 +18,7 @@ class AudioService {
       await _audioPlayer.stop();
       await _audioPlayer.play(AssetSource('sounds/notification.mp3'));
       _isPlaying = true;
-      
+
       // Auto-stop after 3 seconds if still playing
       Future.delayed(const Duration(seconds: 3), () {
         if (_isPlaying) {
@@ -73,6 +73,17 @@ class AudioService {
       _isPlaying = true;
     } catch (e) {
       debugPrint('Error playing custom sound: $e');
+    }
+  }
+
+  // Stop alarm sound
+  Future<void> stopAlarm() async {
+    try {
+      await _audioPlayer.stop();
+      _isPlaying = false;
+      debugPrint('Alarm sound stopped');
+    } catch (e) {
+      debugPrint('Error stopping alarm sound: $e');
     }
   }
 
