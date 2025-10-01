@@ -8,7 +8,8 @@ import '../models/user_profile.dart';
 class AuthService extends ChangeNotifier {
   final SupabaseClient _supabase = Supabase.instance.client;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    clientId: '951387755919-u4bfdqoitnn8fbn580n0h01d4iui6m7p.apps.googleusercontent.com',
+    clientId:
+        '951387755919-u4bfdqoitnn8fbn580n0h01d4iui6m7p.apps.googleusercontent.com',
   );
   final FacebookAuth _facebookAuth = FacebookAuth.instance;
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
@@ -48,28 +49,46 @@ class AuthService extends ChangeNotifier {
   // Sign in with email and password
   Future<AuthResponse> signInWithEmail(String email, String password) async {
     try {
+      debugPrint('Attempting to sign in with email: $email');
+
       final response = await _supabase.auth.signInWithPassword(
         email: email,
         password: password,
       );
-      
+
       if (response.session != null) {
         await _loadUserProfile();
+        debugPrint('Sign in successful for user: ${response.user?.id}');
       }
-      
+
       return response;
     } catch (e) {
-      throw Exception('Sign in failed: $e');
+      debugPrint('Sign in error: $e');
+
+      // Handle different types of errors
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('host lookup') ||
+          e.toString().contains('No address associated with hostname')) {
+        throw Exception(
+            'Network error: Unable to connect to the authentication server. Please check your internet connection and try again.');
+      } else if (e.toString().contains('invalid_grant') ||
+          e.toString().contains('Invalid login credentials')) {
+        throw Exception('Invalid email or password. Please try again.');
+      } else {
+        throw Exception('Sign in failed: ${e.toString()}');
+      }
     }
   }
 
   // Sign up with email and password
   Future<AuthResponse> signUpWithEmail(
-    String email, 
+    String email,
     String password, {
     String? displayName,
   }) async {
     try {
+      debugPrint('Attempting to sign up with email: $email');
+
       final response = await _supabase.auth.signUp(
         email: email,
         password: password,
@@ -82,11 +101,29 @@ class AuthService extends ChangeNotifier {
       if (response.session != null) {
         // Create user profile
         await _createUserProfile(response.user!, displayName);
+        debugPrint('Sign up successful for user: ${response.user?.id}');
       }
 
       return response;
     } catch (e) {
-      throw Exception('Sign up failed: $e');
+      debugPrint('Sign up error: $e');
+
+      // Handle different types of errors
+      if (e.toString().contains('SocketException') ||
+          e.toString().contains('host lookup') ||
+          e.toString().contains('No address associated with hostname')) {
+        throw Exception(
+            'Network error: Unable to connect to the authentication server. Please check your internet connection and try again.');
+      } else if (e.toString().contains('email already in use') ||
+          e.toString().contains('user already registered')) {
+        throw Exception(
+            'This email is already registered. Please try signing in or use a different email.');
+      } else if (e.toString().contains('password')) {
+        throw Exception(
+            'Password error: ${e.toString()}. Please choose a stronger password.');
+      } else {
+        throw Exception('Sign up failed: ${e.toString()}');
+      }
     }
   }
 
@@ -96,7 +133,8 @@ class AuthService extends ChangeNotifier {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return null;
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       final response = await _supabase.auth.signInWithIdToken(
         provider: OAuthProvider.google,
@@ -118,13 +156,13 @@ class AuthService extends ChangeNotifier {
   Future<AuthResponse?> signInWithFacebook() async {
     try {
       final LoginResult result = await _facebookAuth.login();
-      
+
       if (result.status != LoginStatus.success) {
         throw Exception('Facebook login failed');
       }
 
       final AccessToken accessToken = result.accessToken!;
-      
+
       final response = await _supabase.auth.signInWithIdToken(
         provider: OAuthProvider.facebook,
         idToken: accessToken.token,
@@ -190,7 +228,7 @@ class AuthService extends ChangeNotifier {
 
     try {
       updates['last_seen'] = DateTime.now().toIso8601String();
-      
+
       await _supabase
           .from('user_profiles')
           .update(updates)
@@ -207,13 +245,10 @@ class AuthService extends ChangeNotifier {
     if (!isAuthenticated) return;
 
     try {
-      await _supabase
-          .from('user_profiles')
-          .update({
-            'is_online': isOnline,
-            'last_seen': DateTime.now().toIso8601String(),
-          })
-          .eq('id', currentUser!.id);
+      await _supabase.from('user_profiles').update({
+        'is_online': isOnline,
+        'last_seen': DateTime.now().toIso8601String(),
+      }).eq('id', currentUser!.id);
     } catch (e) {
       debugPrint('Error updating online status: $e');
     }
@@ -251,10 +286,10 @@ class AuthService extends ChangeNotifier {
       await _supabase.from('user_profiles').delete().eq('id', currentUser!.id);
       await _supabase.from('todos').delete().eq('user_id', currentUser!.id);
       await _supabase.from('notes').delete().eq('user_id', currentUser!.id);
-      
+
       // Delete auth user
       await _supabase.auth.admin.deleteUser(currentUser!.id);
-      
+
       _userProfile = null;
       notifyListeners();
     } catch (e) {

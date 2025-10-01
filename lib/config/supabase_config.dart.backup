@@ -38,3 +38,12 @@ class SupabaseConfig {
   static const String resetPasswordCallbackUrl =
       'io.supabase.flutterquickstart://reset-password-callback/';
 }
+
+/// Example of what your actual configuration should look like:
+///
+/// ```dart
+/// class SupabaseConfig {
+///   static const String supabaseUrl = 'https://abcdefghijklmnop.supabase.co';
+///   static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...';
+/// }
+/// ```

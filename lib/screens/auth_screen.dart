@@ -452,14 +452,33 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                   border: Border.all(color: Colors.red.withOpacity(0.3)),
                 ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.error_outline, color: Colors.red),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Icon(Icons.error_outline,
+                          color: Colors.red, size: 20),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        _errorMessage!,
+                        // Clean up error message to be more user-friendly
+                        _errorMessage!.startsWith('Exception:')
+                            ? _errorMessage!.substring(10).trim()
+                            : _errorMessage!,
                         style: const TextStyle(color: Colors.red),
                       ),
+                    ),
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      icon:
+                          const Icon(Icons.close, color: Colors.red, size: 18),
+                      onPressed: () {
+                        setState(() {
+                          _errorMessage = null;
+                        });
+                      },
                     ),
                   ],
                 ),
