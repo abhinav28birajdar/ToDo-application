@@ -68,26 +68,27 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen>
         await supabaseService.createNote(
           title: title,
           content: _contentData,
+          contentType: 'text',
           isFavorite: _isFavorite,
+          isPinned: false,
           tags: _tags,
-          drawings: _drawings,
+          folderPath: '/',
         );
       } else {
         // Update existing note
-        final updates = {
-          'title': title,
-          'content': _contentData,
-          'is_favorite': _isFavorite,
-          'tags': _tags,
-          'drawings': _drawings,
-        };
-
-        await supabaseService.updateNote(widget.note!.id, updates);
+        await supabaseService.updateNote(
+          noteId: widget.note!.id,
+          title: title,
+          content: _contentData,
+          tags: _tags,
+          isPinned: widget.note?.isPinned,
+        );
       }
 
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      // Check if still mounted before accessing context
+      if (!mounted) return;
+
+      Navigator.pop(context);
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -189,7 +190,7 @@ class _AddEditNoteScreenState extends State<AddEditNoteScreen>
                       const Divider(),
 
                       // Rich Text Content field
-                      Container(
+                      SizedBox(
                         height: 300,
                         child: RichTextEditor(
                           initialContent: _contentData,

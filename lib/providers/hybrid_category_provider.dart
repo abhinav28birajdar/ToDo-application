@@ -67,9 +67,7 @@ class HybridCategoryProvider extends ChangeNotifier {
     if (!_cloudSyncEnabled || !_supabaseService.isAuthenticated) return;
 
     try {
-      final userId = _supabaseService.userId;
-      if (userId == null) return;
-
+      final userId = _supabaseService.currentUser!.id;
       _categorySubscription = _supabaseService.client
           .channel('categories_$userId')
           .onPostgresChanges(

@@ -9,6 +9,7 @@ class Note {
   String title;
   String content;
   bool isFavorite;
+  bool isPinned;
   String? userId;
   List<String> tags;
   DateTime createdAt;
@@ -20,6 +21,7 @@ class Note {
     required this.title,
     this.content = '',
     this.isFavorite = false,
+    this.isPinned = false,
     this.userId,
     List<String>? tags,
     DateTime? createdAt,
@@ -36,6 +38,7 @@ class Note {
     String? title,
     String? content,
     bool? isFavorite,
+    bool? isPinned,
     String? userId,
     List<String>? tags,
     DateTime? updatedAt,
@@ -46,6 +49,7 @@ class Note {
       title: title ?? this.title,
       content: content ?? this.content,
       isFavorite: isFavorite ?? this.isFavorite,
+      isPinned: isPinned ?? this.isPinned,
       userId: userId ?? this.userId,
       tags: tags ?? this.tags,
       createdAt: this.createdAt,
@@ -67,6 +71,7 @@ class Note {
       'title': title,
       'content': content,
       'is_favorite': isFavorite,
+      'is_pinned': isPinned,
       'user_id': userId,
       'tags': tags,
       'drawings': drawings,
@@ -82,6 +87,7 @@ class Note {
       title: map['title'] as String,
       content: map['content'] as String? ?? '',
       isFavorite: map['is_favorite'] as bool? ?? false,
+      isPinned: map['is_pinned'] as bool? ?? false,
       userId: map['user_id'] as String?,
       tags: (map['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
           [],

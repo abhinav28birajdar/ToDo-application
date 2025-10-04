@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.todo_app"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36 // Updated to meet camera_android plugin requirements
     ndkVersion = "27.0.12077973" // Updated NDK version for compatibility with plugins
 
     compileOptions {

@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import '../providers/hybrid_task_provider.dart';
 import '../providers/hybrid_category_provider.dart';
 import '../providers/settings_provider.dart';
-import '../widgets/real_time_notification_widget.dart';
 import 'tasks_screen.dart';
 import 'notes_screen.dart';
 import 'profile_screen.dart';

@@ -148,9 +148,7 @@ class SettingsProvider extends ChangeNotifier {
     if (_supabaseService.isAuthenticated && _enableDataSync) {
       try {
         final remoteSettings = await _supabaseService.getSettings();
-        if (remoteSettings != null) {
-          _syncWithRemoteSettings(remoteSettings);
-        }
+        _syncWithRemoteSettings(remoteSettings);
       } catch (e) {
         debugPrint('Failed to load remote settings: $e');
       }

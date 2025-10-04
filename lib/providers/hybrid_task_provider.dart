@@ -69,9 +69,7 @@ class HybridTaskProvider extends ChangeNotifier {
     if (!_cloudSyncEnabled || !_supabaseService.isAuthenticated) return;
 
     try {
-      final userId = _supabaseService.userId;
-      if (userId == null) return;
-
+      final userId = _supabaseService.currentUser!.id;
       _taskSubscription = _supabaseService.client
           .channel('tasks_$userId')
           .onPostgresChanges(

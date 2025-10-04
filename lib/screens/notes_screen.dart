@@ -143,7 +143,11 @@ class _NotesScreenState extends State<NotesScreen> {
         'is_favorite': !note.isFavorite,
       };
 
-      await supabaseService.updateNote(note.id, updates);
+      await supabaseService.updateNote(
+        noteId: note.id,
+        isPinned: updates['is_pinned'],
+        isArchived: updates['is_archived'],
+      );
 
       setState(() {
         final index = _notes.indexWhere((n) => n.id == note.id);
@@ -211,7 +215,7 @@ class _NotesScreenState extends State<NotesScreen> {
         final email = emailController.text.trim();
         final supabaseService = SupabaseService();
 
-        await supabaseService.shareNote(note.id, email);
+        await supabaseService.shareNote(note.id);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Note shared with $email')),

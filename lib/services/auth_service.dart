@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/user_profile.dart';
 
 class AuthService extends ChangeNotifier {
@@ -12,7 +11,6 @@ class AuthService extends ChangeNotifier {
         '951387755919-u4bfdqoitnn8fbn580n0h01d4iui6m7p.apps.googleusercontent.com',
   );
   final FacebookAuth _facebookAuth = FacebookAuth.instance;
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   User? get currentUser => _supabase.auth.currentUser;
   bool get isAuthenticated => currentUser != null;

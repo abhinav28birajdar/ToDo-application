@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/supabase_config.dart';
 import '../services/supabase_service.dart';
 
@@ -182,8 +183,8 @@ class SupabaseConnectionTester extends StatelessWidget {
 
       // Step 4: Test the connection with a simple query
       try {
-        final response = await Supabase.instance.client
-            .from('profiles')
+        await Supabase.instance.client
+            .from('user_profiles')
             .select('count')
             .limit(1)
             .count();
